@@ -235,11 +235,12 @@ A compact, append-only handoff snapshot for unfinished work. A checkpoint is wri
 - `task` (required): the task id.
 - `git` (required): `{branch?, base?, head, dirty, changed_paths?}`. `head` and `dirty` are required, so a checkpoint without a Git reference is invalid.
   - `base`: merge-base with the default branch.
+  - `dirty`: whether the working tree had uncommitted changes, including untracked files, **outside `.threadline/`**. Writing Threadline records never makes the code state dirty.
   - `changed_paths`: paths changed since `base`, including uncommitted changes when `dirty: true`.
 - `done`: what is finished.
 - `failed_approaches`: `[{approach, why_failed, evidence?}]`. This is the field most often missing from handoffs, and one of the most valuable.
 - `open_questions`: unknowns the next agent must not guess at.
-- `next_safe_action` (required): one concrete step that is safe to take without further context.
+- `next_safe_action` (required): one concrete step that is safe to take without further context. An agent that must stop without knowing the next step still checkpoints: `threadline checkpoint create` falls back to the task's `next_action`, then to `Not determined: review open_questions and failed_approaches before acting.`
 - `receipts`: verification receipts covering this state.
 
 <!-- threadline:schema=checkpoint -->
@@ -293,7 +294,7 @@ The recorded result of a test, build, lint, or other check, tied to the code sta
 - `status`: always `recorded`. Receipts are append-only.
 - `command` (required), `exit_code` (required), `result` (required): `pass` (exit code MUST be 0) | `fail` (exit code MUST NOT be 0) | `error` (the check could not run properly).
 - `ran_at` (required), `duration_ms`.
-- `git` (required): `{branch?, head, dirty}`.
+- `git` (required): `{branch?, head, dirty}`. `dirty` means the same as in a checkpoint: uncommitted changes outside `.threadline/`.
 - `output_tail`: at most 4,000 characters from the end of the output, redacted (§13) before writing.
 - `provenance`: `{source: local | ci-env | github-attestation, run_url?, attestation?}`.
 
@@ -358,19 +359,19 @@ trust:
 
 ## 8. Provenance and trust levels
 
-Every record carries exactly one `confidence`, from lowest to highest trust:
+Every record carries exactly one `confidence`. From lowest to highest trust: `inferred` < `agent-reported` = `ci-reported` < `human-confirmed` < `ci-verified`.
 
 | Level | Meaning | Who may assign it |
 |---|---|---|
 | `inferred` | Derived by reading code or history; nobody observed it directly. | Anyone. |
 | `agent-reported` | An agent observed or did it in its own session. | Any agent. This is the default for agent writes. |
-| `ci-reported` | Produced with `CI=true` on a clean tree. | Tooling, automatically. This is still a **self-report**, because any local process can set `CI=true`. |
+| `ci-reported` | A self-report made from a CI environment (`CI=true`, clean tree). It carries **the same weight as `agent-reported`**: any local process can set `CI=true`, so the label records where a claim was made, not that anyone checked it. | Tooling, automatically. Receipts also record `provenance.source: ci-env`. |
 | `human-confirmed` | A named human confirmed it. | Only with a non-empty `evidence.human` entry (enforced by schema). Tools set it only when passed `--human <name>`. |
 | `ci-verified` | Backed by CI provenance that can be checked cryptographically. | Only when `manifest.trust.ci_provenance` names a trusted source **and** the cited receipt's `provenance` verifies against it. |
 
 Rules:
 
-1. Trust levels are hard to forge by design. Tools MUST NOT grant `ci-verified` based on environment variables, file paths, agent names, or anything else a local process controls.
+1. Trust levels are hard to forge by design. Tools MUST NOT grant `ci-verified` based on environment variables, file paths, agent names, or anything else a local process controls. For the same reason, tools that sort, score, or filter by trust MUST NOT rank `ci-reported` above `agent-reported`.
 2. In format v1, `validate` MUST reject `ci-verified` when `trust.ci_provenance` is `none` or absent. The attestation verifier for `github-attestation` is on the roadmap; until it ships, `ci-verified` cannot be produced.
 3. No tool upgrades confidence on its own. Upgrades happen through an explicit action such as `threadline verify <id> --human <name>`, and that action is visible in the Git diff.
 4. Briefings (§14) treat only `human-confirmed` and `ci-verified` as verified. Everything else is shown with an *unverified* marker.
@@ -381,6 +382,8 @@ Rules:
 A record describes code at a moment in time. When that code changes, the record may no longer apply.
 
 **`valid_at`** is the commit the author considered the record true at. It exists for humans and as a hint. Commit ancestry is unreliable after squash merges, rebases, branch deletion, and shallow clones, so ancestry alone MUST NOT mark a record stale or broken.
+
+Commit ids MAY be abbreviated. Tools MUST resolve them with Git before comparing them and MUST NOT compare ids as strings: `83fa2de` and its full 40-character id are the same commit.
 
 **`anchor`** is the basis for staleness. When a record is written, tools capture Git blob ids for its `evidence.files` and for tracked files matched by `scope.paths` (subject to the limits in §10):
 
@@ -418,7 +421,7 @@ Every path in `scope.paths`, `evidence.files`, `git.changed_paths`, `anchor.fing
 
 Globs use `*`, `**`, `?`, `[...]`, and `{a,b}`. They are expanded **only against tracked files** (`git ls-files`), never by walking the filesystem, so ignored directories such as `node_modules` are never visited. Expansion stops after `limits.max_glob_matches` files, with a warning.
 
-Each record fingerprints at most `limits.max_fingerprints_per_record` files, taking the first N by sorted path so the result is deterministic. Any remaining matched files are summarized in `anchor.overflow`. Write commands accept `--max-fingerprints N` to override the limit for a single record.
+Each record fingerprints at most `limits.max_fingerprints_per_record` files: cited `evidence.files` first, then scope matches, each group in sorted path order, so the result is deterministic. Any remaining matched files are summarized in `anchor.overflow`. Write commands accept `--max-fingerprints N` to override the limit for a single record.
 
 ## 11. Merge behavior and conflicts
 

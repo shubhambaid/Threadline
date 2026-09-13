@@ -1,12 +1,51 @@
 import path from "node:path";
 import { type Command, CommanderError, Command as CommanderProgram } from "commander";
 import pkg from "../package.json" with { type: "json" };
+import {
+  checkpointCreateCommand,
+  checkpointListCommand,
+  checkpointShowCommand,
+} from "./commands/checkpoint.js";
 import type { Io } from "./commands/context.js";
+import { decisionAddCommand, decisionUpdateCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
+import { knowledgeAddCommand, knowledgeUpdateCommand } from "./commands/knowledge.js";
+import { receiptAddCommand } from "./commands/receipt.js";
 import { statusCommand } from "./commands/status.js";
+import {
+  taskClaimCommand,
+  taskCloseCommand,
+  taskStartCommand,
+  taskUpdateCommand,
+} from "./commands/task.js";
 import { validateCommand } from "./commands/validate.js";
 import { UsageError } from "./core/errors.js";
 import { GitError } from "./git/git.js";
+
+const AGENT_HELP = "agent writing the record (default: $THREADLINE_AGENT)";
+const JSON_HELP = "print a machine-readable result";
+const FINGERPRINT_HELP = "override limits.max_fingerprints_per_record for this record";
+
+function collect(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
+}
+
+function withWriteOptions(command: Command): Command {
+  return command
+    .option("--agent <name>", AGENT_HELP)
+    .option("--max-fingerprints <n>", FINGERPRINT_HELP)
+    .option("--json", JSON_HELP);
+}
+
+function withEvidenceOptions(command: Command): Command {
+  return command
+    .option("--evidence-file <path>", "file that supports the record (repeatable)", collect, [])
+    .option("--commit <sha>", "commit that supports the record (repeatable)", collect, [])
+    .option("--check <command>", "check that verifies the record (repeatable)", collect, [])
+    .option("--receipt <id>", "receipt that supports the record (repeatable)", collect, [])
+    .option("--issue <ref>", "related issue (repeatable)", collect, [])
+    .option("--pr <ref>", "related pull request (repeatable)", collect, []);
+}
 
 /**
  * Runs the Threadline CLI and resolves to its exit code:
@@ -53,6 +92,202 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--json", "print machine-readable status")
     .action(async (options, command: Command) => {
       exitCode = await statusCommand(ioFor(command), options);
+    });
+
+  const task = program.command("task").description("Start, claim, update, and close tasks");
+
+  withWriteOptions(
+    task
+      .command("start")
+      .description("Create an active task owned by the current agent")
+      .argument("<intent>", "what should be true when the task is done, and why")
+      .option("--summary <text>", "one-line summary (default: the intent)")
+      .option("--paths <globs...>", "repository paths or globs the task is about")
+      .option("--branch <name>", "branch where the work happens (default: the current branch)")
+      .option("--next <text>", "the next concrete step")
+      .option("--human <name>", "a named human confirmed the intent (human-confirmed)")
+      .option("--id <id>", "record id (default: derived from the summary)"),
+  ).action(async (intent: string, options, command: Command) => {
+    exitCode = await taskStartCommand(ioFor(command), intent, options);
+  });
+
+  task
+    .command("claim")
+    .description("Take ownership of a task, or renew your lease on it")
+    .argument("<id>", "task id")
+    .option("--force", "take over a task whose lease another agent still holds")
+    .option("--agent <name>", AGENT_HELP)
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await taskClaimCommand(ioFor(command), id, options);
+    });
+
+  task
+    .command("update")
+    .description("Pause, block, or re-describe an open task")
+    .argument("<id>", "task id")
+    .option("--status <status>", "proposed, paused, or blocked")
+    .option("--next <text>", "the next concrete step")
+    .option("--summary <text>", "new one-line summary")
+    .option("--force", "update a task whose lease another agent holds")
+    .option("--agent <name>", AGENT_HELP)
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await taskUpdateCommand(ioFor(command), id, options);
+    });
+
+  task
+    .command("close")
+    .description("Close a task after checking its records are valid")
+    .argument("<id>", "task id")
+    .option("--status <status>", "done or abandoned (default: done)")
+    .option("--summary <text>", "final one-line summary")
+    .option("--force", "close a task whose lease another agent holds")
+    .option("--agent <name>", AGENT_HELP)
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await taskCloseCommand(ioFor(command), id, options);
+    });
+
+  const decision = program.command("decision").description("Record and update decisions");
+
+  withWriteOptions(
+    withEvidenceOptions(
+      decision
+        .command("add")
+        .description("Record what was chosen, why, and what was rejected")
+        .requiredOption(
+          "--topic <key>",
+          "dotted key for what is decided, e.g. auth.session-invalidation",
+        )
+        .requiredOption("--chosen <text>", "what was chosen")
+        .requiredOption("--rationale <text>", "why it was chosen")
+        .option("--summary <text>", "one-line summary (default: the chosen option)")
+        .option(
+          "--alternative <option::reason>",
+          "a rejected alternative (repeatable)",
+          collect,
+          [],
+        )
+        .option("--status <status>", "proposed, accepted, or superseded (default: accepted)")
+        .option("--paths <globs...>", "repository paths or globs the decision applies to")
+        .option("--link <id>", "related record (repeatable)", collect, [])
+        .option("--supersedes <id>", "decision this one replaces (repeatable)", collect, [])
+        .option("--human <name>", "a named human confirmed the decision (human-confirmed)")
+        .option("--id <id>", "record id (default: derived from the topic)"),
+    ),
+  ).action(async (options, command: Command) => {
+    exitCode = await decisionAddCommand(ioFor(command), options);
+  });
+
+  decision
+    .command("update")
+    .description("Change a decision's status or summary")
+    .argument("<id>", "decision id")
+    .option("--status <status>", "proposed, accepted, or superseded")
+    .option("--summary <text>", "new one-line summary")
+    .option("--agent <name>", AGENT_HELP)
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await decisionUpdateCommand(ioFor(command), id, options);
+    });
+
+  const knowledge = program.command("knowledge").description("Record and update durable facts");
+
+  withWriteOptions(
+    withEvidenceOptions(
+      knowledge
+        .command("add")
+        .description("Record an architectural or operational fact")
+        .requiredOption("--category <category>", "architecture, operations, convention, or gotcha")
+        .requiredOption("--body <text>", "the fact, with enough detail to act on")
+        .option("--summary <text>", "one-line summary (default: the body)")
+        .option("--paths <globs...>", "repository paths or globs the fact is about")
+        .option("--link <id>", "related record (repeatable)", collect, [])
+        .option("--human <name>", "a named human confirmed the fact (human-confirmed)")
+        .option("--id <id>", "record id (default: derived from the summary)"),
+    ),
+  ).action(async (options, command: Command) => {
+    exitCode = await knowledgeAddCommand(ioFor(command), options);
+  });
+
+  knowledge
+    .command("update")
+    .description("Change a knowledge record's status or summary")
+    .argument("<id>", "knowledge id")
+    .option("--status <status>", "active or deprecated")
+    .option("--summary <text>", "new one-line summary")
+    .option("--agent <name>", AGENT_HELP)
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await knowledgeUpdateCommand(ioFor(command), id, options);
+    });
+
+  const receipt = program.command("receipt").description("Record verification results");
+
+  withWriteOptions(
+    receipt
+      .command("add")
+      .description("Record the result of a check that already ran (Threadline does not run it)")
+      .requiredOption("--command <command>", "the command that ran, e.g. 'pnpm test auth'")
+      .requiredOption("--exit-code <n>", "its exit code")
+      .option("--result <result>", "pass, fail, or error (default: from the exit code)")
+      .option(
+        "--output-file <path>",
+        "output to keep the redacted tail of (at most 4000 characters)",
+      )
+      .option("--duration-ms <n>", "how long it ran")
+      .option("--ran-at <timestamp>", "when it ran, UTC (default: now)")
+      .option("--summary <text>", "one-line summary")
+      .option("--paths <globs...>", "repository paths the check covers")
+      .option("--id <id>", "record id (default: derived from the command)"),
+  ).action(async (options, command: Command) => {
+    exitCode = await receiptAddCommand(ioFor(command), options);
+  });
+
+  const checkpoint = program
+    .command("checkpoint")
+    .description("Write and read handoff snapshots for unfinished work");
+
+  withWriteOptions(
+    checkpoint
+      .command("create")
+      .description("Snapshot the task, Git state, evidence, and next step for the next agent")
+      .option("--task <id>", "task id (default: your active task)")
+      .option("--done <text>", "something finished (repeatable)", collect, [])
+      .option("--failed <approach::why>", "an approach that did not work (repeatable)", collect, [])
+      .option("--question <text>", "an open question (repeatable)", collect, [])
+      .option("--next <text>", "next safe action (default: the task's next action)")
+      .option(
+        "--receipt <id>",
+        "receipt to attach, in addition to your recent ones (repeatable)",
+        collect,
+        [],
+      )
+      .option("--link <id>", "related record (repeatable)", collect, [])
+      .option("--summary <text>", "one-line summary")
+      .option("--human <name>", "a named human reviewed the checkpoint (human-confirmed)")
+      .option("--id <id>", "record id (default: derived from the task and time)"),
+  ).action(async (options, command: Command) => {
+    exitCode = await checkpointCreateCommand(ioFor(command), options);
+  });
+
+  checkpoint
+    .command("list")
+    .description("List checkpoints, newest first")
+    .option("--task <id>", "only checkpoints for this task")
+    .option("--json", JSON_HELP)
+    .action(async (options, command: Command) => {
+      exitCode = await checkpointListCommand(ioFor(command), options);
+    });
+
+  checkpoint
+    .command("show")
+    .description("Show a checkpoint with its task and receipts")
+    .argument("<id>", "checkpoint id")
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await checkpointShowCommand(ioFor(command), id, options);
     });
 
   try {

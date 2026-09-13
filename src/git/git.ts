@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { lstat } from "node:fs/promises";
+import { join } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -92,6 +94,68 @@ export async function isDirty(
   const args = ["status", "--porcelain=v1", "--untracked-files=normal", "--", "."];
   if (!options.includeThreadline) args.push(":(exclude).threadline");
   return (await gitOk(root, args)).trim().length > 0;
+}
+
+/** Full sha for an abbreviated or full commit id, or undefined if it is not in the repository. */
+export async function resolveCommit(root: string, sha: string): Promise<string | undefined> {
+  const result = await git(root, ["rev-parse", "--verify", "--quiet", `${sha}^{commit}`]);
+  return result.code === 0 ? result.stdout.trim() : undefined;
+}
+
+/** Full sha of a local branch, falling back to origin's copy of it. */
+export async function resolveBranchRef(root: string, branch: string): Promise<string | undefined> {
+  for (const ref of [`refs/heads/${branch}`, `refs/remotes/origin/${branch}`]) {
+    const result = await git(root, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+    if (result.code === 0) return result.stdout.trim();
+  }
+  return undefined;
+}
+
+export async function mergeBase(root: string, a: string, b: string): Promise<string | undefined> {
+  const result = await git(root, ["merge-base", a, b]);
+  return result.code === 0 ? result.stdout.trim() : undefined;
+}
+
+/**
+ * Git blob ids of working-tree files, as `git add` would store them.
+ * Missing files, directories, and symlinks are skipped.
+ */
+export async function hashWorkingTreeFiles(
+  root: string,
+  files: readonly string[],
+): Promise<Map<string, string>> {
+  const regular: string[] = [];
+  for (const file of files) {
+    const info = await lstat(join(root, file)).catch(() => undefined);
+    if (info?.isFile()) regular.push(file);
+  }
+  const blobs = new Map<string, string>();
+  for (let start = 0; start < regular.length; start += 200) {
+    const chunk = regular.slice(start, start + 200);
+    const ids = (await gitOk(root, ["hash-object", "--", ...chunk])).trim().split("\n");
+    chunk.forEach((file, index) => {
+      const id = ids[index];
+      if (id) blobs.set(file, id);
+    });
+  }
+  return blobs;
+}
+
+/**
+ * Paths changed relative to `base` (committed since base, staged, unstaged) plus untracked
+ * files, excluding `.threadline/`. Without a base, changes relative to HEAD. Sorted, unique.
+ */
+export async function changedPathsSince(root: string, base: string | undefined): Promise<string[]> {
+  const files = new Set<string>();
+  const add = (output: string) => {
+    for (const file of output.split("\0")) {
+      if (file && !file.startsWith(".threadline/")) files.add(file);
+    }
+  };
+  const against = base ?? (await headCommit(root));
+  if (against) add(await gitOk(root, ["diff", "--name-only", "-z", against, "--"]));
+  add(await gitOk(root, ["ls-files", "--others", "--exclude-standard", "-z"]));
+  return [...files].sort();
 }
 
 export async function isShallow(root: string): Promise<boolean> {

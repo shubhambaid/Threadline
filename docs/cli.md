@@ -6,6 +6,21 @@ The command is `threadline` (package `@threadline/cli`). Every command works wit
 threadline init [--name <name>]
 threadline validate [--json] [--strict]
 threadline status [--json]
+
+threadline task start "<intent>" [--paths <globs...>] [--next <text>] [--human <name>]
+threadline task claim <id> [--force]
+threadline task update <id> [--status proposed|paused|blocked] [--next <text>]
+threadline task close <id> [--status done|abandoned]
+
+threadline decision add --topic <key> --chosen <text> --rationale <text> [--alternative "<option>::<reason>"]...
+threadline decision update <id> --status proposed|accepted|superseded
+threadline knowledge add --category <category> --body <text> [--summary <text>]
+threadline knowledge update <id> --status active|deprecated
+threadline receipt add --command "<cmd>" --exit-code <n> [--output-file <path>]
+
+threadline checkpoint create [--task <id>] [--done <text>]... [--failed "<approach>::<why>"]... [--question <text>]... [--next <text>]
+threadline checkpoint list [--task <id>] [--json]
+threadline checkpoint show <id> [--json]
 ```
 
 Global options:
@@ -14,15 +29,29 @@ Global options:
 |---|---|
 | `-C, --cwd <dir>` | Run as if started in `<dir>`, like `git -C`. |
 | `-v, --version` | Print the version. |
-| `-h, --help` | Show help for any command. |
+| `-h, --help` | Show help for any command, e.g. `threadline checkpoint create --help`. |
 
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | 0 | Success. `validate` found no errors; warnings and info notes are allowed. |
-| 1 | `validate` found at least one error. |
-| 2 | A usage or environment problem: unknown command, not a Git repository, Threadline not initialized, or git missing. |
+| 1 | `validate` found at least one error, or `task close` refused because the task's records are invalid. |
+| 2 | A usage or environment problem: unknown command, missing option, not a Git repository, Threadline not initialized, no agent identity, or a write refused because it would be invalid or leak a secret. |
+
+## Writing records safely
+
+Every command that writes a record:
+
+- needs an agent identity from `--agent <name>` or `THREADLINE_AGENT`;
+- validates the record against its schema and scans every field for secrets **before** writing. If anything fails, nothing is written, and secret values are never echoed;
+- rejects unsafe paths (absolute, `..`, symlink escapes) and paths matching `privacy.forbidden_globs`;
+- checks that referenced records (`--link`, `--receipt`, `--supersedes`, `--task`) exist and are the right kind;
+- captures an `anchor`: Git blob ids of cited evidence files first, then files matched by `--paths`, up to `limits.max_fingerprints_per_record` (override with `--max-fingerprints <n>`);
+- sets `confidence: agent-reported`, or `human-confirmed` only when `--human <name>` names the person;
+- accepts `--json` to print `{ id, file, warnings, ... }`.
+
+Repeatable options (`--done`, `--failed`, `--question`, `--alternative`, `--link`, `--receipt`, `--evidence-file`, `--commit`, `--check`, `--issue`, `--pr`, `--supersedes`) may be given more than once. `--paths` takes one or more values.
 
 ## `threadline init`
 
@@ -39,6 +68,63 @@ Creates `.threadline/` in the current Git repository:
 - `--name <name>` sets `project.name`. The default is the repository directory name.
 - `defaults.default_branch` is guessed from `origin/HEAD`, then a local `main` or `master`, then `init.defaultBranch`.
 - Safe to run again: existing files are never overwritten. The manifest is written last, so an interrupted run never leaves a repository that looks initialized but is incomplete.
+
+## `threadline task`
+
+- **`start`** creates an `active` task owned by the current agent, with a lease of `defaults.lease_minutes`. The branch defaults to the current one.
+- **`claim`** takes ownership, or renews your own lease. It fails while another agent holds an unexpired lease on an active task; `--force` takes over and says whose lease it overrode. Paused, blocked, and proposed tasks can be claimed by anyone.
+- **`update`** sets `paused`, `blocked`, or `proposed`, and changes `next_action` or `summary`. Use `claim` to make a task active and `close` to finish it.
+- **`close`** sets `done` (default) or `abandoned`. It first validates the repository and refuses (exit 1) if the task, its checkpoints, or the receipts they cite have errors. An expired lease on the task itself does not block closing.
+
+Closed tasks cannot be claimed, updated, or checkpointed.
+
+## `threadline decision` and `threadline knowledge`
+
+- **`decision add`** records `--topic`, `--chosen`, and `--rationale`, plus rejected alternatives as `"<option>::<reason>"`. The id defaults to `dec-<topic>`. Recording a second decision on the same topic needs `--id`, and `--supersedes <old-id>` when it replaces the old one.
+- **`knowledge add`** records a fact with `--category` (`architecture`, `operations`, `convention`, `gotcha`) and `--body`.
+- Both accept evidence: `--evidence-file`, `--commit` (a warning if not in the repository), `--check`, `--receipt`, `--issue`, `--pr`.
+- **`update`** changes `status` or `summary`.
+
+## `threadline receipt add`
+
+Records the result of a check that **already ran**. Threadline never runs commands.
+
+```console
+$ pnpm test auth > /tmp/auth.log; echo $?
+1
+$ threadline receipt add --command "pnpm test auth" --exit-code 1 --output-file /tmp/auth.log
+Created .threadline/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, agent-reported)
+```
+
+- `--result` defaults to `pass` for exit code 0, otherwise `fail`. Use `error` when the check could not run properly.
+- `--output-file` keeps the last 4,000 characters, starting at a line boundary, after redacting secrets.
+- The receipt records the branch, HEAD, and whether the tree was dirty (uncommitted changes outside `.threadline/`).
+- With `CI=true` and a clean tree, confidence is `ci-reported` and `provenance.source` is `ci-env`, with the GitHub Actions run URL when available. That is still a self-report (spec §8). No command can produce `ci-verified`.
+
+## `threadline checkpoint`
+
+**`create`** writes an append-only snapshot for the next agent:
+
+- **Task:** `--task`, or your single active task, or the single active task on this branch.
+- **Git:** branch, HEAD, dirty, `base` (merge-base with `defaults.default_branch`), and `changed_paths` since base, including uncommitted and untracked files, excluding `.threadline/` and forbidden paths.
+- **Receipts:** those named with `--receipt`, plus receipts you recorded since your last checkpoint for the task (or since the task started).
+- **`next_safe_action`:** `--next`, else the task's `next_action`, else `Not determined: review open_questions and failed_approaches before acting.` A checkpoint is never refused for lack of a next step, since stopping without one is worse.
+
+**`list`** shows checkpoints newest first. **`show`** prints the checkpoint with its task's intent and each cited receipt's result; `--json` returns `{ checkpoint, task, receipts }`.
+
+A typical handoff:
+
+```console
+$ threadline checkpoint create --done "Added token_version" \
+    --failed "Delete session rows::Refresh tokens are cached" --next "Compare token_version in refresh.ts"
+$ threadline task update task-session-reset --status paused
+$ git add -A && git commit -m "wip: checkpoint" && git push
+
+# The next agent, in a fresh session:
+$ threadline status
+$ threadline checkpoint show $(threadline checkpoint list --task task-session-reset --json | jq -r '.[0].id')
+$ threadline task claim task-session-reset
+```
 
 ## `threadline validate`
 
@@ -94,6 +180,7 @@ Shows the branch, HEAD, and dirty state (changes under `.threadline/` don't coun
 | `THREADLINE_AGENT` | Agent identity for commands that write records, such as `codex`, `claude-code`, or `gemini`. `--agent` takes precedence. |
 | `THREADLINE_NOW` | Fixed current time (for example `2026-09-13T21:00:00Z`), for reproducible tests and demos. |
 | `THREADLINE_DEBUG` | Print stack traces for unexpected failures. |
+| `CI` | When `true` (or `1`) and the tree is clean, receipts are labeled `ci-reported`. |
 
 ## CI
 
