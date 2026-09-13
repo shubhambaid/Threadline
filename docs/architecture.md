@@ -1,0 +1,85 @@
+# Architecture
+
+Threadline is a CLI over a directory of YAML files. Every other surface (the MCP server, instruction blocks, the GitHub Action) goes through the same commands. There is no service, database, or network access.
+
+```mermaid
+flowchart LR
+  subgraph Callers
+    codex[Codex]
+    claude[Claude Code]
+    gemini[Gemini CLI]
+    people[People and CI]
+  end
+
+  codex -->|shell| cli[threadline CLI]
+  claude -->|shell| cli
+  gemini -->|shell| cli
+  people -->|shell, GitHub Action| cli
+  claude -.->|MCP stdio| mcp[threadline mcp]
+  codex -.->|MCP stdio| mcp
+  gemini -.->|MCP stdio| mcp
+  mcp -->|same commands, in-process| cli
+
+  cli --> write["Write path<br/>identity, path safety, references,<br/>anchor capture, secret scan, schema"]
+  write --> files[(".threadline/*.yaml<br/>one file per record")]
+  files <-->|commit, merge, review| git[(Git)]
+
+  files --> read["Read path<br/>load, validate, staleness, conflicts"]
+  git --> read
+  read --> resume["resume<br/>collect, assess, score, budget, cite"]
+  read --> checks["validate, status, doctor"]
+  read --> render["render<br/>instruction blocks, PR summary"]
+```
+
+## Write path
+
+Every command that writes a record (`task`, `decision`, `knowledge`, `receipt`, `checkpoint`, `verify`, `doctor --fix`) does the same steps, in `src/core/write.ts`:
+
+1. **Identity.** `--agent` or `THREADLINE_AGENT`, required.
+2. **Path safety.** Paths must be repository-relative. Absolute paths, `..`, symlink escapes, and forbidden globs are refused. Globs expand only against `git ls-files`, and expansion is capped (`src/core/paths.ts`).
+3. **References.** Linked records must exist and be the right kind.
+4. **Anchor.** Git blob ids of the evidence files, then of scope matches, are captured up to a limit; the rest are summarized in an overflow digest (`src/core/anchor.ts`).
+5. **Secret scan, then schema validation.** If either fails, nothing is written, and secret values are never echoed.
+6. **Atomic write.** Written to a temporary file, then renamed.
+
+Checkpoints and receipts are append-only. `validate` compares them with the version first committed.
+
+## Read path
+
+- **Validation** (`src/validate/`) checks schema, identity, references, secrets, leases, trust labels, paths, commits, append-only history, staleness, and contradictions. Each finding has a code, location, and hint.
+- **Staleness** (`src/trust/staleness.ts`) compares anchored fingerprints with the working tree when a record is read. The status is derived and never written: `fresh`, `needs_reverification`, `diverged`, `broken_evidence`, or `unanchored`. Commit ancestry is only a hint, which is why records survive squash merges and shallow clones.
+- **Conflicts** (`src/trust/conflicts.ts`) finds contradictory decisions, overlapping claims, orphaned checkpoints, and superseded decisions that are still accepted. It uses the same scope-overlap rules as `resume`.
+
+## Briefing compiler (`resume`)
+
+```mermaid
+flowchart LR
+  task[Task] --> collect
+  collect["collect<br/>links both ways, cited receipts,<br/>receipts on this line, path overlap"] --> assess["assess<br/>staleness per record,<br/>code changed since each receipt"]
+  assess --> score["score<br/>how found, trust, accepted,<br/>anchor on this line"]
+  score --> allocate["allocate<br/>required sections in full,<br/>then leaders per section,<br/>then detail by priority"]
+  allocate --> cite["render<br/>every bullet cites its source,<br/>⚠ for unverified or stale"]
+```
+
+The compiler is deterministic. It uses no embeddings and no model calls, and identical records and Git state produce byte-identical output. The budget is approximate (characters / 4). Failed approaches and open questions are kept before decisions and file lists when space is short, because they exist nowhere else. The target agent changes only the header and footer.
+
+## Integrations
+
+- **Instruction blocks** (`src/adapters/blocks.ts`): a short managed block between markers in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. Its job is the trigger: start from `threadline resume`.
+- **MCP** (`src/mcp/`): a dependency-free JSON-RPC server over stdio. Each tool call runs the matching CLI command in-process, one call at a time, so validation and the secret scan cannot drift from the CLI. The official MCP SDK is used only in tests.
+- **GitHub Action** (`action.yml`): runs `threadline validate` in CI.
+
+## Source layout
+
+| Directory | Contents |
+|---|---|
+| `schemas/` | JSON Schemas for every record kind and the manifest (the format's source of truth, with `docs/spec.md`) |
+| `src/core/` | Records, ids, clock, YAML format, paths, manifest, anchors, and the write path |
+| `src/git/` | Git via `execFile`, never a shell |
+| `src/validate/` | Schema errors, references, secrets, leases, and the validator |
+| `src/trust/` | Confidence ranks, staleness, and conflicts |
+| `src/compile/` | `resume` collection, scoring, budgeting, the briefing, and PR summaries |
+| `src/adapters/` | Managed instruction blocks |
+| `src/mcp/` | MCP server, tool definitions, and stdio framing |
+| `src/commands/` | One module per command |
+| `test/` | Unit, spec-example, and end-to-end tests, fixtures, golden briefings, and the demo test |

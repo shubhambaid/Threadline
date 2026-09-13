@@ -1,0 +1,9 @@
+{
+  "name": "auth-service-demo",
+  "private": true,
+  "type": "module",
+  "description": "A deliberately tiny auth service for the Threadline handoff demo. No dependencies.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
