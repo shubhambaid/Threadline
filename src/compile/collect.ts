@@ -2,7 +2,7 @@ import { asArray, asObject, asString } from "../core/json.js";
 import type { Manifest } from "../core/manifest.js";
 import { expandScope, scopeMatcher } from "../core/paths.js";
 import type { LoadedRecord } from "../core/store.js";
-import { listTrackedFiles, resolveCommit } from "../git/git.js";
+import { isAncestor, listTrackedFiles, resolveCommit } from "../git/git.js";
 import { collectPaths, collectReferences } from "../validate/references.js";
 
 export interface GitState {
@@ -21,6 +21,7 @@ export type Reason =
   | "links-to-task"
   | "cited-by-checkpoint"
   | "cited-by-record"
+  | "since-checkpoint"
   | "at-head"
   | "path-overlap";
 
@@ -30,6 +31,7 @@ export const REASON_WEIGHT: Record<Reason, number> = {
   "links-to-task": 80,
   "cited-by-checkpoint": 80,
   "cited-by-record": 50,
+  "since-checkpoint": 80,
   "at-head": 45,
   "path-overlap": 40,
 };
@@ -134,13 +136,23 @@ export async function collect(
     }
   }
 
-  // Receipts recorded at the current HEAD since the task started.
+  // Receipts recorded at the current HEAD since the task started, and receipts recorded on this
+  // line of history since the latest checkpoint. The latter are the ones the next checkpoint
+  // would attach (the same rule as `checkpoint create`), so they are not lost when a commit lands
+  // before anyone checkpoints again.
   if (git.head) {
     const since = asString(task.data.created_at) ?? "";
+    const pendingSince = asString(checkpoints[0]?.data.created_at) ?? since;
     for (const record of records) {
-      if (record.kind !== "receipt" || (asString(record.data.created_at) ?? "") < since) continue;
+      const createdAt = asString(record.data.created_at) ?? "";
+      if (record.kind !== "receipt" || createdAt < since) continue;
       const head = asString(asObject(record.data.git)?.head);
-      if (head && (await resolveCommit(root, head)) === git.head) add(record, "at-head");
+      const resolved = head ? await resolveCommit(root, head) : undefined;
+      if (!resolved) continue;
+      if (resolved === git.head) add(record, "at-head");
+      else if (createdAt >= pendingSince && (await isAncestor(root, resolved, git.head))) {
+        add(record, "since-checkpoint");
+      }
     }
   }
 

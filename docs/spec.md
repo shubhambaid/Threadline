@@ -494,8 +494,8 @@ Rules:
 
 The format is agent-neutral. Integrations are thin:
 
-- **Instruction files.** `threadline render` maintains a marked block (`<!-- threadline:begin -->` … `<!-- threadline:end -->`) in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to run `threadline resume` before non-trivial work, write checkpoints only at meaningful boundaries, record receipts with `threadline receipt add`, never store private content (§13), and run `threadline validate` before closing work. Content outside the block is never touched.
-- **MCP.** `threadline mcp` exposes the same operations as MCP tools and resources for agents that support MCP.
+- **Instruction files.** `threadline render` maintains a marked block (`<!-- threadline:begin -->` … `<!-- threadline:end -->`) in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to run `threadline resume` before non-trivial work, write checkpoints only at meaningful boundaries, record receipts with `threadline receipt add`, never store private content (§13), and run `threadline validate` before closing work. Content outside the block is never touched. Agents do not share one instruction file by default: Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GEMINI.md` unless configured otherwise. A `CLAUDE.md` or `GEMINI.md` that imports `@AGENTS.md` can share the `AGENTS.md` block, and `render` detects that instead of writing a second copy.
+- **MCP.** `threadline mcp` exposes the same operations as MCP tools and resources for agents that support MCP. Tools run the same command code as the CLI, including schema validation, path safety, and the secret scan. No MCP tool can mark a record `human-confirmed`: human confirmation goes through the CLI with `--human`.
 - **CLI.** Every agent that can run shell commands can use the CLI directly. Identity comes from `--agent` or `THREADLINE_AGENT`.
 
 Per-agent setup (exact config files and commands) lives in `docs/adapters/`, where it is checked against each vendor's current documentation.

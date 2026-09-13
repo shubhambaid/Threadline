@@ -23,6 +23,10 @@ threadline checkpoint list [--task <id>] [--json]
 threadline checkpoint show <id> [--json]
 
 threadline resume [--task <id>] [--target codex|claude-code|gemini|generic] [--budget <tokens>] [--format md|json]
+
+threadline render agents-md|claude-md|gemini-md [--write | --check]
+threadline render pr-summary [--task <id>]
+threadline mcp
 ```
 
 Global options:
@@ -144,20 +148,62 @@ Compiles a briefing for the next agent from records and the current Git state. S
 Options:
 
 - `--task <id>`: defaults to the active task owned by `--agent` or `THREADLINE_AGENT`, else the single open task on the current branch, else the single open task.
-- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers, Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
+- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers. Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
 - `--target`: `codex`, `claude-code`, `gemini`, or `generic`. Only the header and footer change; the content is identical for every target.
 - `--format json`: `{ task, target, budget, tokens, overBudget, sections[{ key, title, items[{ key, level, text }] }] }`.
 
 How records are chosen (deterministic, no embeddings):
 
 - records linked from the task or its checkpoints, and records whose `links` name the task;
-- receipts cited by the task's checkpoints or by chosen decisions and knowledge, and receipts recorded at HEAD since the task started;
+- receipts cited by the task's checkpoints or by chosen decisions and knowledge, receipts recorded at HEAD since the task started, and receipts recorded on this line of history since the latest checkpoint (the ones the next checkpoint would attach);
 - decisions and knowledge whose `scope.paths` or evidence files match the task scope, the branch's changed paths, or the checkpoints' changed paths;
 - superseded decisions and deprecated knowledge only when explicitly linked.
 
 They are ranked by how they were found (explicit links first), trust level (`ci-reported` counts the same as `agent-reported`), accepted status, whether their anchor is on this line of history, and, for receipts, whether the code is unchanged since they ran; then recency and id. Staleness never lowers a record's rank: a record that may be stale is shown with its warning rather than hidden. Within their section, records that may be stale are listed first, so their warnings survive small budgets.
 
 Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose anchored content changed materially are marked `⚠ may be stale: <reason>` (spec §9).
+
+## `threadline render`
+
+**Instruction files.** `render agents-md`, `render claude-md`, and `render gemini-md` maintain a short block between `<!-- threadline:begin -->` and `<!-- threadline:end -->` in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to start from `threadline resume`, record receipts and checkpoints, keep private content out of records, and validate before closing.
+
+- Without options, it prints the block and writes nothing.
+- `--write` creates the file, appends the block, or replaces the existing block. Text outside the markers is never changed, and CRLF line endings are kept. Running it again changes nothing.
+- `--check` exits 1 when the file is missing or its block differs. Use it in CI.
+- Malformed markers (a begin without an end, or two blocks) are refused with exit 2 rather than guessed at.
+- `claude-md` and `gemini-md` change nothing when the file imports `@AGENTS.md` and `AGENTS.md` already has the block. They refuse to write through a symlink to `AGENTS.md`, and no file is written through a symlink that leaves the repository.
+
+Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GEMINI.md` unless configured otherwise. Per-agent setup: [Codex](adapters/codex.md), [Claude Code](adapters/claude-code.md), [Gemini CLI](adapters/gemini.md).
+
+**Pull request summary.** `render pr-summary` prints a Markdown description for a task (`--task`, or inferred as for `resume`). It includes the intent and status, decisions, the latest receipt for each command, failed approaches, open questions, and the next step, and each item cites its record. It reports recorded results and never re-runs them.
+
+```console
+$ threadline render pr-summary | gh pr create --title "Invalidate sessions after password reset" --body-file -
+```
+
+## `threadline mcp`
+
+Runs a Model Context Protocol server over stdio: newline-delimited JSON-RPC 2.0, protocol versions 2024-11-05 through 2025-11-25. Stdout carries only protocol messages, and diagnostics go to stderr. The server exits when the client closes stdin.
+
+| Tool | Runs |
+|---|---|
+| `resume` | `resume` (Markdown briefing) |
+| `status` | `status --json` |
+| `validate` | `validate --json`. Findings are a normal result, not a tool error. |
+| `task_start` | `task start` |
+| `task_claim` | `task claim` |
+| `checkpoint_create` | `checkpoint create`, with `failed_approaches` as `{ approach, why_failed }` objects |
+| `receipt_record` | `receipt add`, with the command's output passed as `output` text |
+| `decision_add` | `decision add`, with `alternatives` as `{ option, rejected_because }` objects |
+| `knowledge_add` | `knowledge add` |
+
+Resources: `threadline://status` (JSON), and `threadline://records/{id}` for any record's YAML. Open tasks are listed.
+
+- Every tool call runs the matching CLI command in-process, one call at a time. Schema validation, path safety, reference checks, and the secret scan are therefore the same as on the command line. A refused write comes back as a tool error (`isError: true`) with the CLI's message.
+- Arguments are checked against each tool's input schema first, and unknown properties are refused.
+- No tool takes a `human` argument, so nothing written over MCP can be `human-confirmed`.
+- Identity comes from `THREADLINE_AGENT` in the server's environment, or from an `agent` argument.
+- The repository is `-C <dir>` if given, else `CLAUDE_PROJECT_DIR`, else the working directory.
 
 ## `threadline validate`
 
@@ -214,6 +260,7 @@ Shows the branch, HEAD, and dirty state (changes under `.threadline/` don't coun
 | `THREADLINE_NOW` | Fixed current time (for example `2026-09-13T21:00:00Z`), for reproducible tests and demos. |
 | `THREADLINE_DEBUG` | Print stack traces for unexpected failures. |
 | `CI` | When `true` (or `1`) and the tree is clean, receipts are labeled `ci-reported`. |
+| `CLAUDE_PROJECT_DIR` | Set by Claude Code for the MCP servers it starts. `threadline mcp` uses it as the repository when `-C` is not given. |
 
 ## CI
 

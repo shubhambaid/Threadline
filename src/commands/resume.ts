@@ -5,7 +5,7 @@ import {
   type Target,
 } from "../compile/briefing.js";
 import { collect, type GitState } from "../compile/collect.js";
-import { type AssessedCandidate, rankCandidates } from "../compile/score.js";
+import { type AssessedCandidate, rankCandidates, type ScoredCandidate } from "../compile/score.js";
 import { now } from "../core/clock.js";
 import { UsageError } from "../core/errors.js";
 import { asObject, asString } from "../core/json.js";
@@ -39,24 +39,28 @@ export interface ResumeOptions {
 
 const OPEN_STATUSES = new Set(["active", "paused", "blocked", "proposed"]);
 
-export async function resumeCommand(io: Io, options: ResumeOptions): Promise<number> {
-  const target = options.target ?? "generic";
-  if (!(TARGETS as readonly string[]).includes(target)) {
-    throw new UsageError(`--target must be one of: ${TARGETS.join(", ")}`);
-  }
-  const format = options.format ?? "md";
-  if (format !== "md" && format !== "json") throw new UsageError("--format must be md or json");
+/** Everything known about a task and its related records, ranked, before rendering. */
+export interface PreparedTask {
+  manifest: Manifest;
+  git: GitState;
+  task: LoadedRecord;
+  /** The task's checkpoints, newest first. */
+  checkpoints: LoadedRecord[];
+  latestRelation?: CheckpointRelation;
+  scopePaths: string[];
+  records: ScoredCandidate[];
+}
 
+export async function prepareTask(
+  io: Io,
+  options: { task?: string; agent?: string },
+): Promise<PreparedTask> {
   const root = await requireInitialized(io);
   const { manifest, findings } = await loadManifest(root);
   if (!manifest) {
     const problems = findings.map((f) => `${f.path ?? f.file}: ${f.message}`).join("; ");
     throw new UsageError(`The manifest is invalid (${problems}). Run \`threadline validate\`.`);
   }
-  const budget =
-    options.budget === undefined
-      ? manifest.defaults.budget
-      : parseInteger(options.budget, "--budget", 200);
 
   const index = await loadRecordIndex(root);
   const git = await readGitState(root, manifest);
@@ -83,18 +87,41 @@ export async function resumeCommand(io: Io, options: ResumeOptions): Promise<num
   }
 
   const latest = collected.checkpoints[0];
-  const briefing = buildBriefing({
-    target: target as Target,
-    budget,
-    now: now(io.env),
+  return {
+    manifest,
+    git,
     task,
     checkpoints: collected.checkpoints,
     latestRelation: latest
       ? await relationToHead(root, asString(asObject(latest.data.git)?.head), git.head)
       : undefined,
-    git,
     scopePaths: collected.scopePaths,
     records: rankCandidates(assessed),
+  };
+}
+
+export async function resumeCommand(io: Io, options: ResumeOptions): Promise<number> {
+  const target = options.target ?? "generic";
+  if (!(TARGETS as readonly string[]).includes(target)) {
+    throw new UsageError(`--target must be one of: ${TARGETS.join(", ")}`);
+  }
+  const format = options.format ?? "md";
+  if (format !== "md" && format !== "json") throw new UsageError("--format must be md or json");
+  const budgetFlag =
+    options.budget === undefined ? undefined : parseInteger(options.budget, "--budget", 200);
+
+  const prepared = await prepareTask(io, options);
+  const budget = budgetFlag ?? prepared.manifest.defaults.budget;
+  const briefing = buildBriefing({
+    target: target as Target,
+    budget,
+    now: now(io.env),
+    task: prepared.task,
+    checkpoints: prepared.checkpoints,
+    latestRelation: prepared.latestRelation,
+    git: prepared.git,
+    scopePaths: prepared.scopePaths,
+    records: prepared.records,
   });
 
   if (format === "json") {

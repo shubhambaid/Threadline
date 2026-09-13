@@ -95,7 +95,7 @@ function count(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
-function markers(data: Data, staleness?: StalenessResult): string {
+export function markers(data: Data, staleness?: StalenessResult): string {
   const parts: string[] = [];
   if (staleness && STALE.has(staleness.status)) {
     parts.push(`⚠ may be stale: ${staleness.reasons[0] ?? staleness.status.replace(/_/g, " ")}`);

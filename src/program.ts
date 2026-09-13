@@ -10,7 +10,9 @@ import type { Io } from "./commands/context.js";
 import { decisionAddCommand, decisionUpdateCommand } from "./commands/decision.js";
 import { initCommand } from "./commands/init.js";
 import { knowledgeAddCommand, knowledgeUpdateCommand } from "./commands/knowledge.js";
+import { mcpCommand } from "./commands/mcp.js";
 import { receiptAddCommand } from "./commands/receipt.js";
+import { renderCommand } from "./commands/render.js";
 import { resumeCommand } from "./commands/resume.js";
 import { statusCommand } from "./commands/status.js";
 import {
@@ -304,6 +306,31 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--agent <name>", "agent reading the briefing, to find its active task")
     .action(async (options, command: Command) => {
       exitCode = await resumeCommand(ioFor(command), options);
+    });
+
+  program
+    .command("render")
+    .description("Write agent instruction blocks, or print a pull request summary")
+    .argument("<output>", "agents-md, claude-md, gemini-md, or pr-summary")
+    .option("--write", "update the instruction file (default: preview the block)")
+    .option("--check", "exit 1 if the instruction file is missing or out of date")
+    .option("--task <id>", "pr-summary: task to summarize (default: your active task)")
+    .option("--agent <name>", "pr-summary: agent whose active task to summarize")
+    .action(async (output: string, options, command: Command) => {
+      exitCode = await renderCommand(ioFor(command), output, options);
+    });
+
+  program
+    .command("mcp")
+    .description("Serve Threadline tools and resources over MCP (stdio)")
+    .action(async (_options, command: Command) => {
+      // Claude Code tells project servers where the project is; an explicit -C still wins.
+      const { cwd } = command.optsWithGlobals<{ cwd?: string }>();
+      const projectDir = io.env.CLAUDE_PROJECT_DIR;
+      exitCode = await mcpCommand(
+        !cwd && projectDir ? { ...io, cwd: projectDir } : ioFor(command),
+        runCli,
+      );
     });
 
   try {

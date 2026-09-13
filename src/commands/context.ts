@@ -9,6 +9,8 @@ export interface Io {
   env: NodeJS.ProcessEnv;
   stdout: (text: string) => void;
   stderr: (text: string) => void;
+  /** Input for `threadline mcp` (default: process.stdin). */
+  stdin?: NodeJS.ReadableStream;
 }
 
 export async function resolveRepoRoot(io: Io): Promise<string> {
