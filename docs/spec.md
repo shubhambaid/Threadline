@@ -504,7 +504,7 @@ Per-agent setup (exact config files and commands) lives in `docs/adapters/`, whe
 - schema violations, mapped to `file: field` with a fix hint;
 - a file name that does not match its id, a record in the wrong directory, or duplicate ids;
 - dangling references in `links`, `task`, `receipts`, `evidence.receipts`, or `supersedes`;
-- `evidence.files` that do not exist at HEAD;
+- `evidence.files` that do not exist in the working tree;
 - evidence commits that do not exist (reported as a warning in shallow clones and after history rewrites, and as an error with `--strict`);
 - secret-like content (§13);
 - unsafe paths (§10);

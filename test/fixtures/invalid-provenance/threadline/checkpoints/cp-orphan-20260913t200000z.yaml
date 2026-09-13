@@ -1,0 +1,17 @@
+id: cp-orphan-20260913t200000z
+kind: checkpoint
+schema_version: 1
+summary: Points at a task that does not exist.
+status: recorded
+confidence: agent-reported
+task: task-missing
+git:
+  branch: main
+  head: "{{short:1}}"
+  dirty: false
+next_safe_action: Find the task this belongs to.
+receipts:
+  - rcpt-ci-claim-20260913t200000z
+created_by:
+  agent: codex
+created_at: "2026-09-13T20:05:00Z"

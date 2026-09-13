@@ -21,6 +21,8 @@
     "node": ">=22.12"
   },
   "scripts": {
+    "build": "tsup",
+    "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
@@ -29,11 +31,15 @@
   },
   "dependencies": {
     "ajv": "^8.20.0",
+    "commander": "^15.0.0",
+    "picomatch": "^4.0.7",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.13",
     "@types/node": "^22.20.2",
+    "@types/picomatch": "^4.0.3",
+    "tsup": "^8.5.1",
     "typescript": "~5.9.3",
     "vitest": "^5.0.0"
   }

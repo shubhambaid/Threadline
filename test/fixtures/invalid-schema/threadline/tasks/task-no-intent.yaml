@@ -1,0 +1,9 @@
+id: task-no-intent
+kind: task
+schema_version: 1
+summary: A task without an intent.
+status: proposed
+confidence: agent-reported
+created_by:
+  agent: codex
+created_at: "2026-09-13T18:00:00Z"

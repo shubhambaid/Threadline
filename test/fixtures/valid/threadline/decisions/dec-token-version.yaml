@@ -1,0 +1,30 @@
+id: dec-token-version
+kind: decision
+schema_version: 1
+summary: Revoke sessions by bumping a per-user token version.
+status: accepted
+confidence: agent-reported
+topic: auth.session-invalidation
+chosen: Store token_version and reject tokens with an older version.
+rationale: One increment revokes every session, including cached refresh tokens.
+scope:
+  paths:
+    - apps/api/auth/**
+links:
+  - task-session-reset
+  - kn-refresh-cache
+evidence:
+  commits:
+    - "{{short:1}}"
+  files:
+    - apps/api/auth/session.ts
+  receipts:
+    - rcpt-auth-tests-20260913t200000z
+created_by:
+  agent: claude-code
+created_at: "2026-09-13T19:00:00Z"
+valid_at: "{{short:1}}"
+anchor:
+  commit: "{{commit:1}}"
+  fingerprints:
+    apps/api/auth/session.ts: "{{blob:apps/api/auth/session.ts}}"

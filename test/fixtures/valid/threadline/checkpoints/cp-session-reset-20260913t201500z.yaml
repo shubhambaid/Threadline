@@ -1,0 +1,29 @@
+id: cp-session-reset-20260913t201500z
+kind: checkpoint
+schema_version: 1
+summary: Token version stored; refresh path still accepts old tokens.
+status: recorded
+confidence: agent-reported
+task: task-session-reset
+git:
+  branch: main
+  head: "{{short:2}}"
+  dirty: false
+  changed_paths:
+    - apps/api/auth/password-reset.ts
+done:
+  - Password reset increments token_version.
+failed_approaches:
+  - approach: Delete session rows on reset.
+    why_failed: Cached refresh tokens kept working.
+    evidence:
+      receipts:
+        - rcpt-auth-tests-20260913t200000z
+open_questions:
+  - Should API keys be revoked too?
+next_safe_action: Compare token_version in refresh.ts, then rerun pnpm test auth.
+receipts:
+  - rcpt-auth-tests-20260913t200000z
+created_by:
+  agent: codex
+created_at: "2026-09-13T20:15:00Z"

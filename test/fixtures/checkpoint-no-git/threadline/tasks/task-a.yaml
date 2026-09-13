@@ -1,0 +1,10 @@
+id: task-a
+kind: task
+schema_version: 1
+summary: A proposed task.
+status: proposed
+confidence: agent-reported
+intent: Give the checkpoint something to point at.
+created_by:
+  agent: codex
+created_at: "2026-09-13T18:00:00Z"

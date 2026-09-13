@@ -1,0 +1,19 @@
+id: task-session-reset
+kind: task
+schema_version: 1
+summary: Invalidate sessions after password reset.
+status: active
+confidence: agent-reported
+intent: Sessions issued before a password reset must stop working.
+branch: main
+owner:
+  agent: codex
+  claimed_at: "2026-09-13T18:00:00Z"
+  lease_expires_at: "2026-09-13T22:00:00Z"
+next_action: Compare token_version during refresh.
+scope:
+  paths:
+    - apps/api/auth/**
+created_by:
+  agent: codex
+created_at: "2026-09-13T18:00:00Z"
