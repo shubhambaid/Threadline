@@ -4,7 +4,7 @@ import { asArray, asObject, asString } from "../core/json.js";
 import { checkRepoPath, scopeMatcher } from "../core/paths.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
 import type { LoadedRecord } from "../core/store.js";
-import { truncate } from "../core/text.js";
+import { NOT_DETERMINED, truncate } from "../core/text.js";
 import {
   anchorFor,
   assertReferences,
@@ -21,17 +21,17 @@ import {
   changedPathsSince,
   currentBranch,
   headCommit,
+  isAncestor,
   isDirty,
   mergeBase,
   resolveBranchRef,
+  resolveCommit,
   shortSha,
 } from "../git/git.js";
 import { type Io, requireInitialized } from "./context.js";
 import { type CommonWriteOptions, reportWrite } from "./report.js";
 
-/** Recorded when nobody knows the next step. Stopping without a checkpoint is worse. */
-export const NOT_DETERMINED =
-  "Not determined: review open_questions and failed_approaches before acting.";
+export { NOT_DETERMINED } from "../core/text.js";
 
 type Data = Record<string, unknown>;
 
@@ -114,9 +114,10 @@ export async function checkpointCreateCommand(
   const links = unique(options.link);
   assertReferences(index, links, "--link");
 
-  // Receipts: the ones named explicitly, plus this agent's receipts since its last checkpoint.
-  // Timestamps have one-second precision, so "since" includes the same second: attaching a
-  // receipt to two checkpoints is harmless, silently dropping evidence is not.
+  // Receipts: the ones named explicitly, plus receipts any agent recorded since the task's last
+  // checkpoint (or since the task started) on this line of history. Other agents' receipts are
+  // included so evidence survives a handoff; the ancestry check keeps out receipts recorded on
+  // unrelated branches. Timestamps have one-second precision, so "since" includes that second.
   const explicitReceipts = unique(options.receipt);
   assertReferences(index, explicitReceipts, "--receipt", "receipt");
   const previous = [...index.values()]
@@ -124,15 +125,16 @@ export async function checkpointCreateCommand(
     .map((record) => asString(record.data.created_at) ?? "")
     .sort();
   const since = previous.at(-1) ?? asString(task.data.created_at) ?? "";
-  const autoReceipts = [...index.values()]
-    .filter(
-      (record) =>
-        record.kind === "receipt" &&
-        asObject(record.data.created_by)?.agent === ctx.agent &&
-        (asString(record.data.created_at) ?? "") >= since,
-    )
-    .map((record) => asString(record.data.id) ?? "")
-    .filter(Boolean);
+  const autoReceipts: string[] = [];
+  for (const record of index.values()) {
+    if (record.kind !== "receipt" || (asString(record.data.created_at) ?? "") < since) continue;
+    const receiptId = asString(record.data.id);
+    const receiptHead = asString(asObject(record.data.git)?.head);
+    const resolved = receiptHead ? await resolveCommit(root, receiptHead) : undefined;
+    if (receiptId && resolved && (await isAncestor(root, resolved, head))) {
+      autoReceipts.push(receiptId);
+    }
+  }
   const receipts = unique([...explicitReceipts, ...autoReceipts]).sort();
 
   const nextSafeAction = options.next ?? asString(task.data.next_action) ?? NOT_DETERMINED;

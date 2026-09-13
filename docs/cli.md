@@ -21,6 +21,8 @@ threadline receipt add --command "<cmd>" --exit-code <n> [--output-file <path>]
 threadline checkpoint create [--task <id>] [--done <text>]... [--failed "<approach>::<why>"]... [--question <text>]... [--next <text>]
 threadline checkpoint list [--task <id>] [--json]
 threadline checkpoint show <id> [--json]
+
+threadline resume [--task <id>] [--target codex|claude-code|gemini|generic] [--budget <tokens>] [--format md|json]
 ```
 
 Global options:
@@ -107,7 +109,7 @@ Created .threadline/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, ag
 
 - **Task:** `--task`, or your single active task, or the single active task on this branch.
 - **Git:** branch, HEAD, dirty, `base` (merge-base with `defaults.default_branch`), and `changed_paths` since base, including uncommitted and untracked files, excluding `.threadline/` and forbidden paths.
-- **Receipts:** those named with `--receipt`, plus receipts you recorded since your last checkpoint for the task (or since the task started).
+- **Receipts:** those named with `--receipt`, plus receipts any agent recorded since the task's last checkpoint (or since the task started) whose `git.head` is on the current line of history. Evidence recorded before a handoff carries over; receipts from unrelated branches do not.
 - **`next_safe_action`:** `--next`, else the task's `next_action`, else `Not determined: review open_questions and failed_approaches before acting.` A checkpoint is never refused for lack of a next step, since stopping without one is worse.
 
 **`list`** shows checkpoints newest first. **`show`** prints the checkpoint with its task's intent and each cited receipt's result; `--json` returns `{ checkpoint, task, receipts }`.
@@ -125,6 +127,37 @@ $ threadline status
 $ threadline checkpoint show $(threadline checkpoint list --task task-session-reset --json | jq -r '.[0].id')
 $ threadline task claim task-session-reset
 ```
+
+## `threadline resume`
+
+Compiles a briefing for the next agent from records and the current Git state. Sections always appear in this order:
+
+1. **Goal**: the task's intent, status, and owner.
+2. **Current repository state**: branch, HEAD, dirty, changes since base, and how far HEAD has moved since the latest checkpoint, including whether any code outside `.threadline/` changed.
+3. **Relevant architecture and decisions**: decisions and knowledge.
+4. **Files changed or likely relevant**: task scope, changes on this branch, and paths changed at the latest checkpoint.
+5. **Verified behavior and checks run**: receipts, noting whether they ran on HEAD, on a commit with the same code, or on code that has changed since.
+6. **Failed approaches**: from every checkpoint for the task, newest first.
+7. **Open questions**: from the latest checkpoint.
+8. **Next safe action**: from the latest checkpoint, else the task.
+
+Options:
+
+- `--task <id>`: defaults to the active task owned by `--agent` or `THREADLINE_AGENT`, else the single open task on the current branch, else the single open task.
+- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers, Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
+- `--target`: `codex`, `claude-code`, `gemini`, or `generic`. Only the header and footer change; the content is identical for every target.
+- `--format json`: `{ task, target, budget, tokens, overBudget, sections[{ key, title, items[{ key, level, text }] }] }`.
+
+How records are chosen (deterministic, no embeddings):
+
+- records linked from the task or its checkpoints, and records whose `links` name the task;
+- receipts cited by the task's checkpoints or by chosen decisions and knowledge, and receipts recorded at HEAD since the task started;
+- decisions and knowledge whose `scope.paths` or evidence files match the task scope, the branch's changed paths, or the checkpoints' changed paths;
+- superseded decisions and deprecated knowledge only when explicitly linked.
+
+They are ranked by how they were found (explicit links first), trust level (`ci-reported` counts the same as `agent-reported`), accepted status, whether their anchor is on this line of history, and, for receipts, whether the code is unchanged since they ran; then recency and id. Staleness never lowers a record's rank: a record that may be stale is shown with its warning rather than hidden. Within their section, records that may be stale are listed first, so their warnings survive small budgets.
+
+Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose anchored content changed materially are marked `⚠ may be stale: <reason>` (spec §9).
 
 ## `threadline validate`
 

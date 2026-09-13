@@ -11,6 +11,7 @@ import { decisionAddCommand, decisionUpdateCommand } from "./commands/decision.j
 import { initCommand } from "./commands/init.js";
 import { knowledgeAddCommand, knowledgeUpdateCommand } from "./commands/knowledge.js";
 import { receiptAddCommand } from "./commands/receipt.js";
+import { resumeCommand } from "./commands/resume.js";
 import { statusCommand } from "./commands/status.js";
 import {
   taskClaimCommand,
@@ -288,6 +289,21 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--json", JSON_HELP)
     .action(async (id: string, options, command: Command) => {
       exitCode = await checkpointShowCommand(ioFor(command), id, options);
+    });
+
+  program
+    .command("resume")
+    .description("Compile a cited, budgeted briefing for continuing a task")
+    .option("--task <id>", "task to brief (default: your active task, or the only open task)")
+    .option("--target <agent>", "codex, claude-code, gemini, or generic (default: generic)")
+    .option(
+      "--budget <tokens>",
+      "approximate size in tokens, estimated as characters / 4 (default: defaults.budget)",
+    )
+    .option("--format <format>", "md or json (default: md)")
+    .option("--agent <name>", "agent reading the briefing, to find its active task")
+    .action(async (options, command: Command) => {
+      exitCode = await resumeCommand(ioFor(command), options);
     });
 
   try {

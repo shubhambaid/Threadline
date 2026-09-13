@@ -14,7 +14,7 @@ const INTENT = "Invalidate sessions after password reset";
 const TASK_ID = "task-invalidate-sessions-after-password-reset";
 
 describe("threadline checkpoint", () => {
-  it("captures Git state and attaches this agent's receipts", async () => {
+  it("captures Git state and attaches receipts recorded since the task started", async () => {
     const repo = await initializedRepo();
     const base = await shortHead(repo);
     expectOk(
@@ -64,7 +64,7 @@ describe("threadline checkpoint", () => {
         as(repo, "codex", "2026-09-13T21:15:00Z"),
       ),
     );
-    expect(result.stdout).toContain("2 changed paths, 1 receipt attached");
+    expect(result.stdout).toContain("2 changed paths, 2 receipts attached");
 
     const file =
       ".threadline/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t211500z.yaml";
@@ -87,7 +87,7 @@ describe("threadline checkpoint", () => {
       ],
       open_questions: ["Should API keys be revoked too?"],
       next_safe_action: "Compare token_version in refresh.ts",
-      receipts: ["rcpt-pnpm-test-auth-20260913t211000z"],
+      receipts: ["rcpt-pnpm-lint-20260913t211100z", "rcpt-pnpm-test-auth-20260913t211000z"],
       scope: { paths: ["apps/api/auth/**"] },
     });
     await expectValid(repo, "2026-09-13T21:15:00Z");

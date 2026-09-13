@@ -1,3 +1,7 @@
+/** Recorded when nobody knows the next step. Stopping without a checkpoint is worse. */
+export const NOT_DETERMINED =
+  "Not determined: review open_questions and failed_approaches before acting.";
+
 export function oneLine(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }

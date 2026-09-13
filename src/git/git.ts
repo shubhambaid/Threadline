@@ -117,6 +117,38 @@ export async function mergeBase(root: string, a: string, b: string): Promise<str
 }
 
 /**
+ * Whether any file outside `.threadline/` differs between two commits. Committing records
+ * alone does not count as a code change. Undefined if either commit is missing.
+ */
+export async function codeChangedBetween(
+  root: string,
+  from: string,
+  to: string,
+): Promise<boolean | undefined> {
+  const result = await git(root, ["diff", "--quiet", from, to, "--", ".", ":(exclude).threadline"]);
+  if (result.code === 0) return false;
+  if (result.code === 1) return true;
+  return undefined;
+}
+
+/** Commits in `from..to` when `from` is an ancestor of `to`; otherwise undefined. */
+export async function commitsSince(
+  root: string,
+  from: string,
+  to: string,
+): Promise<number | undefined> {
+  if (!(await isAncestor(root, from, to))) return undefined;
+  const result = await git(root, ["rev-list", "--count", `${from}..${to}`]);
+  return result.code === 0 ? Number(result.stdout.trim()) : undefined;
+}
+
+/** Content of a blob, or undefined if the object is not in the repository. */
+export async function readBlob(root: string, blob: string): Promise<string | undefined> {
+  const result = await git(root, ["cat-file", "blob", blob]);
+  return result.code === 0 ? result.stdout : undefined;
+}
+
+/**
  * Git blob ids of working-tree files, as `git add` would store them.
  * Missing files, directories, and symlinks are skipped.
  */
