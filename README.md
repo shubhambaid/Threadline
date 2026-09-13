@@ -25,7 +25,7 @@ npm install && npm run build
 examples/demo/run-demo.sh
 ```
 
-The script builds a tiny auth service in a temporary directory, then hands one task through three agents: Codex tries an approach that fails, Claude Code resumes from the briefing and fixes it, and Gemini runs the full suite and closes the task. It takes a few seconds and is run by the test suite, so it stays accurate. Here is part of the briefing Claude Code starts from, compiled only from Codex's records:
+The script builds a tiny auth service in a temporary directory, then hands one task through three agents: Codex tries an approach that fails, Claude Code resumes from the briefing and fixes it, and Gemini runs the full suite and closes the task. It takes a few seconds and is run by the test suite, so it stays accurate. Here is part of the briefing Claude Code starts from, compiled only from Codex's records (abridged; run the script for the full output):
 
 ```text
 ## Verified behavior and checks run
