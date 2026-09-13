@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:threadline:v1:knowledge",
+  "title": "Threadline knowledge",
+  "type": "object",
+  "allOf": [{ "$ref": "urn:threadline:v1:common#/$defs/envelope" }],
+  "required": ["body", "category"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^kn-" },
+    "kind": { "const": "knowledge" },
+    "status": { "enum": ["active", "deprecated"] },
+    "category": { "enum": ["architecture", "operations", "convention", "gotcha"] },
+    "body": { "type": "string", "minLength": 1, "maxLength": 8000 }
+  },
+  "unevaluatedProperties": false
+}

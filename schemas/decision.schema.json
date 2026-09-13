@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:threadline:v1:decision",
+  "title": "Threadline decision",
+  "type": "object",
+  "allOf": [{ "$ref": "urn:threadline:v1:common#/$defs/envelope" }],
+  "required": ["topic", "chosen", "rationale"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^dec-" },
+    "kind": { "const": "decision" },
+    "status": { "enum": ["proposed", "accepted", "superseded"] },
+    "topic": {
+      "description": "Stable key for what is being decided. Two accepted decisions on the same topic with overlapping scope conflict unless one supersedes the other.",
+      "type": "string",
+      "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$",
+      "maxLength": 120
+    },
+    "chosen": { "$ref": "urn:threadline:v1:common#/$defs/text" },
+    "rationale": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["option", "rejected_because"],
+        "properties": {
+          "option": { "$ref": "urn:threadline:v1:common#/$defs/text" },
+          "rejected_because": { "$ref": "urn:threadline:v1:common#/$defs/text" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "unevaluatedProperties": false
+}

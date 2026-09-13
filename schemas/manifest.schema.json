@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:threadline:v1:manifest",
+  "title": "Threadline manifest (.threadline/manifest.yaml)",
+  "type": "object",
+  "required": ["format_version", "project"],
+  "properties": {
+    "format_version": { "const": 1 },
+    "project": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 }
+      },
+      "additionalProperties": false
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "budget": { "type": "integer", "minimum": 200, "maximum": 100000 },
+        "lease_minutes": { "type": "integer", "minimum": 1, "maximum": 10080 },
+        "default_branch": { "type": "string", "minLength": 1, "maxLength": 255 }
+      },
+      "additionalProperties": false
+    },
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "extra_secret_patterns": {
+          "description": "JavaScript regular expressions, matched against every string field.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+        },
+        "forbidden_globs": {
+          "description": "Paths that records must never cite or fingerprint.",
+          "type": "array",
+          "items": { "$ref": "urn:threadline:v1:common#/$defs/repoPath" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "staleness": {
+      "type": "object",
+      "properties": {
+        "changed_lines_threshold": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "max_glob_matches": { "type": "integer", "minimum": 1 },
+        "max_fingerprints_per_record": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "trust": {
+      "type": "object",
+      "properties": {
+        "ci_provenance": {
+          "description": "Trusted source that may grant ci-verified. 'none' means ci-verified is always rejected.",
+          "enum": ["none", "github-attestation"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
