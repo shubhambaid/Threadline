@@ -12,6 +12,8 @@ import {
 } from "../core/paths.js";
 import { type LoadedRecord, loadRecords } from "../core/store.js";
 import { commitExists, firstCommittedContent, isShallow } from "../git/git.js";
+import { createOverlapCheck, findContradictions } from "../trust/conflicts.js";
+import { assessStaleness, createStalenessContext, type DerivedStatus } from "../trust/staleness.js";
 import { checkLeases } from "./leases.js";
 import { collectCommits, collectPaths, collectReferences } from "./references.js";
 import { validateAgainst } from "./schema.js";
@@ -76,6 +78,8 @@ export async function validateRepository(
     ...(await checkPaths(root, records, manifest)),
     ...(await checkCommits(root, records, options.strict ?? false)),
     ...(await checkAppendOnly(root, records)),
+    ...(await checkStaleness(root, records, manifest)),
+    ...(await findContradictions(records, createOverlapCheck(root, manifest))),
   ];
 
   const sorted = sortFindings(findings);
@@ -321,6 +325,46 @@ async function checkCommits(
           : "Prefer durable evidence (PRs, issues, receipts). --strict treats this as an error.",
       });
     }
+  }
+  return findings;
+}
+
+const STALE_CODES: Partial<Record<DerivedStatus, string>> = {
+  needs_reverification: "needs-reverification",
+  diverged: "diverged",
+};
+
+/**
+ * Warnings for active claims whose anchored content changed (docs/spec.md §9). Missing evidence
+ * files are already errors from the path check, so `broken_evidence` is not repeated here.
+ */
+async function checkStaleness(
+  root: string,
+  records: readonly LoadedRecord[],
+  manifest: Manifest,
+): Promise<Finding[]> {
+  const claims = records.filter(
+    (record) =>
+      (record.kind === "decision" && record.data.status !== "superseded") ||
+      (record.kind === "knowledge" && record.data.status !== "deprecated"),
+  );
+  if (claims.length === 0) return [];
+  const ctx = await createStalenessContext(root, manifest);
+  const findings: Finding[] = [];
+  for (const record of claims) {
+    const result = await assessStaleness(ctx, record.data);
+    const code = STALE_CODES[result.status];
+    if (!code) continue;
+    const id = asString(record.data.id) ?? record.file;
+    const more = result.reasons.length > 1 ? ` (and ${result.reasons.length - 1} more)` : "";
+    findings.push({
+      severity: "warning",
+      code,
+      file: record.file,
+      path: "anchor",
+      message: `May be stale: ${result.reasons[0] ?? result.status}${more}`,
+      hint: `Check it against the current code, then run \`threadline verify ${id}\` (with --human <name> if a person confirmed it), or supersede or deprecate it.`,
+    });
   }
   return findings;
 }

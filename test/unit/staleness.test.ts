@@ -118,6 +118,41 @@ describe("assessStaleness", () => {
     expect(result.reasons).toContain("files beyond the fingerprint limit changed");
   });
 
+  it("only notes changes to files matched by a scope glob when the record cites evidence", async () => {
+    const repo = await baseRepo();
+    const data = await record(repo, { scopePaths: ["src/**"], evidenceFiles: ["src/a.ts"] });
+    repo.write("src/b.ts", lines(5, "rewritten"));
+    repo.write("src/c.ts", "export {};\n");
+    await repo.commitAll("edit around the evidence");
+    const result = await assess(repo.root, data);
+    expect(result.status).toBe("fresh");
+    expect(result.notes).toContain(
+      "src/b.ts changed 10 lines (+5/-5), but only a scope glob matches it",
+    );
+    expect(result.notes).toContain("1 file added under a scope glob: src/c.ts");
+
+    repo.write("src/a.ts", lines(10, "new"));
+    expect((await assess(repo.root, data)).status).toBe("needs_reverification");
+  });
+
+  it("treats files named exactly in scope as direct", async () => {
+    const repo = await baseRepo();
+    const data = await record(repo, { scopePaths: ["src/a.ts", "src/**"] });
+    repo.write("src/b.ts", lines(5, "rewritten"));
+    expect((await assess(repo.root, data)).status).toBe("fresh");
+    repo.write("src/a.ts", lines(10, "new"));
+    const result = await assess(repo.root, data);
+    expect(result.status).toBe("needs_reverification");
+    expect(result.reasons).toEqual(["src/a.ts changed 20 lines (+10/-10) since it was anchored"]);
+  });
+
+  it("keeps scope-only records sensitive to every matched file", async () => {
+    const repo = await baseRepo();
+    const data = await record(repo, { scopePaths: ["src/**"] });
+    repo.write("src/b.ts", lines(5, "rewritten"));
+    expect((await assess(repo.root, data)).status).toBe("needs_reverification");
+  });
+
   it("stays fresh after its branch is squash-merged, deleted, and garbage-collected", async () => {
     const repo = await baseRepo();
     await repo.run(["checkout", "-q", "-b", "feature"]);

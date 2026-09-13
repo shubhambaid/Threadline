@@ -406,6 +406,8 @@ The derived status is computed at read time and never written into the record au
 | `broken_evidence` | A cited `evidence.files` path no longer exists. |
 | `diverged` | The anchor commit exists and is not an ancestor of `HEAD`, **and** fingerprints differ. The record describes code from another line of history that does not match this one. |
 
+**Direct and context files.** A fingerprinted file is *direct* when it is listed in `evidence.files` or named exactly in `scope.paths`. Other fingerprinted files are *context*: they were matched only by a glob or a directory. When a record has any direct files, changes to context files are reported as notes and do not change the derived status. The same applies to files added under a glob and to changes summarized in `overflow`. This keeps a broad scope such as `apps/api/auth/**` from flagging a claim on every edit nearby. A record anchored only by globs has no direct files, so every matched file counts for it.
+
 An anchor commit that is missing, or not an ancestor, while the fingerprints still match is reported only as an informational note ("anchor commit unavailable"). This is why a record created on a feature branch stays `fresh` after that branch is squash-merged and deleted.
 
 A record is re-anchored only by an explicit action (`threadline verify`), and that action shows up as a diff.

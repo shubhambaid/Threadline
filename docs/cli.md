@@ -24,6 +24,9 @@ threadline checkpoint show <id> [--json]
 
 threadline resume [--task <id>] [--target codex|claude-code|gemini|generic] [--budget <tokens>] [--format md|json]
 
+threadline verify <id> [--human <name> [--note <text>]] [--receipt <id>]...
+threadline doctor [--fix] [--strict] [--json]
+
 threadline render agents-md|claude-md|gemini-md [--write | --check]
 threadline render pr-summary [--task <id>]
 threadline mcp
@@ -243,8 +246,46 @@ Finding codes:
 | `missing-commit` | warning (error with `--strict`) | An evidence commit, `git.head`, or `git.base` is not in the repository. |
 | `unavailable-commit` | info | `valid_at` or `anchor.commit` is not in the repository. Expected after squash merges; never a failure. |
 | `append-only` | error | A committed checkpoint or receipt was edited. |
+| `needs-reverification` | warning | An active decision's or knowledge record's direct files changed beyond `staleness.changed_lines_threshold`, or files were added to its scope (spec §9). |
+| `diverged` | warning | The record was anchored on another line of history, and the content here differs. |
+| `contradiction` | warning | Two accepted decisions on the same topic have overlapping scopes, and neither supersedes the other (spec §11). |
 
-Staleness warnings (spec §9) and contradictory-decision warnings (spec §11) come in a later release.
+A deleted evidence file is reported once, as `missing-evidence-file`, rather than also as stale.
+
+## `threadline verify`
+
+Re-anchors a decision, knowledge record, or task to HEAD after someone checked that it still holds. It rewrites `valid_at`, `anchor`, and `updated_at`, so the check appears as a diff (spec §8 rule 3, §9).
+
+```console
+$ threadline verify dec-auth-refresh-cache --human "Priya" --note "Read refresh.ts after the rewrite"
+Updated .threadline/decisions/dec-auth-refresh-cache.yaml
+Verified dec-auth-refresh-cache at 4b1e9c2
+  was: needs_reverification: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored
+  confidence: human-confirmed (confirmed by Priya)
+  anchor: 4 files fingerprinted
+```
+
+- `--human <name>` sets `human-confirmed` and appends an `evidence.human` entry. `--note` records what the person checked.
+- Without `--human`, confidence becomes `agent-reported`, unless the anchored content is unchanged. In that case an existing `agent-reported`, `ci-reported`, or `human-confirmed` label is kept. A confirmation made against older code is never carried forward onto code that has changed. `inferred` becomes `agent-reported`.
+- No command can produce `ci-verified`.
+- `--receipt <id>` adds supporting receipts to `evidence.receipts`.
+- Refused: checkpoints and receipts (append-only), superseded or deprecated records, closed tasks, and records whose evidence files no longer exist.
+
+## `threadline doctor`
+
+Runs everything `validate` checks, plus coordination checks that only `doctor` reports:
+
+| Code | Severity | Meaning |
+|---|---|---|
+| `overlapping-claim` | warning | Two active tasks with unexpired leases, held by different agents, over overlapping paths. |
+| `orphaned-checkpoint` | warning | A checkpoint written after its task was closed, typically from merging branches. Its next action may be unfinished work. |
+| `superseded-still-accepted` | warning | A decision named in an accepted decision's `supersedes` that is still `accepted` or `proposed`. |
+
+Scopes overlap when they share a pattern, when one names a path the other matches, or when both match a tracked file. A decision with no scope overlaps everything on its topic.
+
+- Each finding carries its hint. In `--json` output it also carries `command` (the suggested command, when there is one) and `fixable`.
+- `--fix` applies only mechanical fixes, then reports what remains. It pauses active tasks whose lease expired (the owner stays on record), and marks decisions `superseded` when an accepted decision already supersedes them. Anything that needs judgment, such as contradictions, stale claims, or overlapping claims, is left to the suggested command. `--fix` needs an agent identity.
+- Exit code 1 when errors remain, 0 otherwise. `--json` prints `{ ok, errors, warnings, fixed[], findings[] }`.
 
 ## `threadline status`
 

@@ -150,22 +150,43 @@ export async function assessStaleness(
     return { status: broken ? "broken_evidence" : "unanchored", reasons, notes, anchor: "none" };
   }
 
+  const scopePaths = asArray(asObject(data.scope)?.paths).filter(
+    (p): p is string => typeof p === "string",
+  );
+
+  // Direct files are cited as evidence or named exactly in scope. When a record has any, files
+  // matched only by a scope glob (or a directory) are context: their edits are noted but do not
+  // make the record stale, so a broad glob does not flag a claim on every change nearby.
+  const evidenceSet = new Set(evidenceFiles);
+  const exactScope = new Set(scopePaths.filter((p) => !isGlob(p)));
+  const isDirect = (file: string) => evidenceSet.has(file) || exactScope.has(file);
+  const hasDirect = evidenceFiles.length > 0 || anchored.some(isDirect);
+  const counts = (file: string) => !hasDirect || isDirect(file);
+
   let material = false;
   let differs = false;
-  const evidenceSet = new Set(evidenceFiles);
   const blobs = await currentBlobs(ctx, anchored);
   for (const file of anchored) {
     const before = asString(fingerprints[file]);
     const current = blobs.get(file) ?? null;
     if (current === before) continue;
-    differs = true;
+    const direct = counts(file);
+    if (direct) differs = true;
     if (current === null) {
+      if (!direct) {
+        notes.push(`${file} was deleted, but only a scope glob matched it`);
+        continue;
+      }
       material = true;
       if (!evidenceSet.has(file)) reasons.push(`${file} was deleted`);
       continue;
     }
     const previous = before ? await readBlob(ctx.root, before) : undefined;
     if (previous === undefined) {
+      if (!direct) {
+        notes.push(`${file} changed, but only a scope glob matches it`);
+        continue;
+      }
       material = true;
       reasons.push(`${file} changed, and the anchored version is not in this repository`);
       continue;
@@ -175,17 +196,18 @@ export async function assessStaleness(
       await readFile(path.join(ctx.root, file), "utf8"),
     );
     const total = added + deleted;
-    if (total > ctx.threshold) {
+    if (total <= ctx.threshold) {
+      notes.push(`${file} changed ${total} lines, within the threshold of ${ctx.threshold}`);
+    } else if (!direct) {
+      notes.push(
+        `${file} changed ${total} lines (+${added}/-${deleted}), but only a scope glob matches it`,
+      );
+    } else {
       material = true;
       reasons.push(`${file} changed ${total} lines (+${added}/-${deleted}) since it was anchored`);
-    } else {
-      notes.push(`${file} changed ${total} lines, within the threshold of ${ctx.threshold}`);
     }
   }
 
-  const scopePaths = asArray(asObject(data.scope)?.paths).filter(
-    (p): p is string => typeof p === "string",
-  );
   if (scopePaths.length > 0) {
     const matched = expandScope(
       await trackedFiles(ctx),
@@ -195,12 +217,17 @@ export async function assessStaleness(
     const anchoredSet = new Set(anchored);
     if (!overflow) {
       const added = matched.filter((file) => !anchoredSet.has(file));
-      if (added.length > 0) {
+      const direct = added.filter(counts);
+      const context = added.filter((file) => !counts(file));
+      const list = (files: string[]) =>
+        `${files.slice(0, 3).join(", ")}${files.length > 3 ? ", …" : ""}`;
+      if (direct.length > 0) {
         material = true;
         differs = true;
-        reasons.push(
-          `${count(added.length, "file")} added under scope: ${added.slice(0, 3).join(", ")}${added.length > 3 ? ", …" : ""}`,
-        );
+        reasons.push(`${count(direct.length, "file")} added under scope: ${list(direct)}`);
+      }
+      if (context.length > 0) {
+        notes.push(`${count(context.length, "file")} added under a scope glob: ${list(context)}`);
       }
     } else {
       // Recompute the overflow digest in the same order captureAnchor used.
@@ -213,9 +240,13 @@ export async function assessStaleness(
       const present = rest.filter((file) => restBlobs.get(file));
       const digest = digestOf(present.map((file) => `${restBlobs.get(file)} ${file}`).join("\n"));
       if (present.length !== overflow.count || digest !== overflow.digest) {
-        material = true;
-        differs = true;
-        reasons.push("files beyond the fingerprint limit changed");
+        if (hasDirect) {
+          notes.push("files beyond the fingerprint limit changed, but only scope globs match them");
+        } else {
+          material = true;
+          differs = true;
+          reasons.push("files beyond the fingerprint limit changed");
+        }
       }
     }
   }

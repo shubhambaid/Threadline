@@ -8,6 +8,7 @@ import {
 } from "./commands/checkpoint.js";
 import type { Io } from "./commands/context.js";
 import { decisionAddCommand, decisionUpdateCommand } from "./commands/decision.js";
+import { doctorCommand } from "./commands/doctor.js";
 import { initCommand } from "./commands/init.js";
 import { knowledgeAddCommand, knowledgeUpdateCommand } from "./commands/knowledge.js";
 import { mcpCommand } from "./commands/mcp.js";
@@ -22,6 +23,7 @@ import {
   taskUpdateCommand,
 } from "./commands/task.js";
 import { validateCommand } from "./commands/validate.js";
+import { verifyCommand } from "./commands/verify.js";
 import { UsageError } from "./core/errors.js";
 import { GitError } from "./git/git.js";
 
@@ -306,6 +308,34 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--agent <name>", "agent reading the briefing, to find its active task")
     .action(async (options, command: Command) => {
       exitCode = await resumeCommand(ioFor(command), options);
+    });
+
+  withWriteOptions(
+    program
+      .command("verify")
+      .description(
+        "Re-anchor a decision, knowledge record, or task to HEAD after checking it holds",
+      )
+      .argument("<id>", "record id")
+      .option("--human <name>", "a named human confirmed it against the current code")
+      .option("--note <text>", "with --human: what the person checked")
+      .option("--receipt <id>", "receipt that supports it (repeatable)", collect, []),
+  ).action(async (id: string, options, command: Command) => {
+    exitCode = await verifyCommand(ioFor(command), id, options);
+  });
+
+  program
+    .command("doctor")
+    .description("Find stale records, conflicts, and lease problems, with a command to fix each")
+    .option(
+      "--fix",
+      "apply safe fixes: pause tasks with expired leases, retire superseded decisions",
+    )
+    .option("--strict", "treat missing evidence commits as errors")
+    .option("--agent <name>", "agent applying --fix (default: $THREADLINE_AGENT)")
+    .option("--json", "print a machine-readable report")
+    .action(async (options, command: Command) => {
+      exitCode = await doctorCommand(ioFor(command), options);
     });
 
   program
