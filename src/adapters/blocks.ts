@@ -33,7 +33,7 @@ export function instructionBlock(kind: InstructionKind): string {
     "",
     `- Before non-trivial work, run \`alethic resume --target ${agent}\` and read the briefing. Items marked ⚠ are claims to check, not facts.`,
     `- Identify yourself with \`ALETHIC_AGENT=${agent}\` or \`--agent ${agent}\`. Claim a task before changing it: \`alethic task claim <id>\`, or \`alethic task start "<intent>" --paths <globs>\`.`,
-    '- After running a check, record the result: `alethic receipt add --command "<cmd>" --exit-code <n> --output-file <log>`. Aletheic records results; it does not run commands.',
+    '- Run checks through Aletheic so the result and the code it saw are recorded: `alethic receipt run -- <command>`. For a check that already ran, use `alethic receipt add --command "<cmd>" --exit-code <n> --output-file <log>`.',
     "- Record choices with `alethic decision add` and durable facts with `alethic knowledge add`.",
     '- Checkpoint only at meaningful boundaries (before stopping or handing off, after a decision, after an approach fails): `alethic checkpoint create --next "<next step>"`.',
     "- Never put chat transcripts, secrets, credentials, customer data, or private agent memories in `.alethic/`.",

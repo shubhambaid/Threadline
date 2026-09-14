@@ -1,14 +1,17 @@
 import { asString } from "../core/json.js";
 import { effectiveConfidence } from "../trust/claims.js";
 import { trustRank } from "../trust/confidence.js";
+import type { ReceiptAssessment } from "../trust/receipts.js";
 import type { StalenessResult } from "../trust/staleness.js";
 import { type Candidate, REASON_WEIGHT } from "./collect.js";
 
 export interface AssessedCandidate extends Candidate {
   staleness: StalenessResult;
+  /** Receipts: how the result relates to the current code. */
+  receipt?: ReceiptAssessment;
   /** Receipts: whether they ran on the current HEAD. */
   atHead?: boolean;
-  /** Receipts: whether files outside .alethic/ changed since they ran; undefined if unknown. */
+  /** Receipts: false when the code is known unchanged since they ran; undefined if unknown. */
   codeChanged?: boolean;
 }
 

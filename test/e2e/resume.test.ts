@@ -87,7 +87,7 @@ describe("alethic resume", () => {
       "Does the mobile client retry refresh on 401?",
     );
     expect(section(small, "Verified behavior and checks run")).toMatch(
-      /`pnpm test auth` failed \(exit 1\) at [0-9a-f]+ \(code unchanged since\)/,
+      /`pnpm test auth` failed \(exit 1\) at [0-9a-f]+ \(code unchanged since, reported\)/,
     );
     const warnings = bullets(small).filter(
       (line) => line.includes("⚠ may be stale") && !POINTER_LINE.test(line),

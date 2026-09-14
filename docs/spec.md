@@ -33,7 +33,7 @@ Aletheic stores that context as small, typed, reviewable records inside the repo
 
 - Replacing Git, issue trackers, or ADR processes.
 - Storing chat transcripts or reasoning traces, in full or in part.
-- Orchestrating agents: scheduling, running, or supervising them, or executing commands on their behalf.
+- Orchestrating agents: scheduling, running, or supervising them, or executing work on their behalf. The one command that runs anything is `alethic receipt run`, which runs a single command the caller names, in the foreground, only to observe its result and the code it ran on (§6.5). It does not schedule, retry, or supervise.
 - Hosted accounts, billing, sync services, or a central database.
 - Inferring "truth" from agent output automatically. Aletheic records who claimed what, with what evidence, and at what trust level. It never upgrades a claim on its own.
 - Semantic/embedding search. Retrieval is deterministic.
@@ -289,14 +289,25 @@ links:
 
 ### 6.5 Receipt
 
-The recorded result of a test, build, lint, or other check, tied to the code state it ran on. Aletheic **records** receipts. It does not run commands.
+The recorded result of a test, build, lint, or other check, tied to the code state it ran on. A receipt is either **observed**, when `alethic receipt run` executed the command and captured the code state around it, or **imported**, when `alethic receipt add` records a result someone reports.
 
 - `status`: always `recorded`. Receipts are append-only.
 - `command` (required), `exit_code` (required), `result` (required): `pass` (exit code MUST be 0) | `fail` (exit code MUST NOT be 0) | `error` (the check could not run properly).
 - `ran_at` (required), `duration_ms`.
-- `git` (required): `{branch?, head, dirty}`. `dirty` means the same as in a checkpoint: uncommitted changes outside `.alethic/`.
+- `git` (required): `{branch?, head, dirty}` when the check started (observed) or was reported (imported). `dirty` means the same as in a checkpoint: uncommitted changes outside `.alethic/`.
 - `output_tail`: at most 4,000 characters from the end of the output, redacted (§13) before writing.
-- `provenance`: `{source: local | ci-env | github-attestation, run_url?, attestation?}`.
+- `provenance`: `{source: local | ci-env | github-attestation, capture?: observed | imported, run_url?, attestation?}`. A receipt without `capture` counts as imported. An imported receipt MUST NOT be presented as observed.
+- `execution` (observed): `{argv, cwd, started_at, finished_at, signal?}`. `cwd` is relative to the repository root. Environment variables are passed to the command but never recorded.
+- `state` (observed): `{coverage, file_limit, before, after, changed_during_run}`. `before` and `after` are `{head, dirty, digest, files}` snapshots taken just before and just after the command. `digest` summarizes the content of every tracked and untracked (not ignored) file outside `.alethic/` and forbidden paths (`coverage: workspace`), or only files matching `scope.paths` when given (`coverage: scope`). When more files match than `limits.max_receipt_files`, only the first ones in path order are digested (`coverage: partial`). `changed_during_run` is true when the digest or HEAD differs between the two snapshots.
+
+Observed execution is not cryptographic CI provenance: an observed receipt made in CI is still at most `ci-reported` (§8).
+
+**Does a receipt apply to the code now?** Tools decide at read time, and never by commit alone:
+
+- **Observed:** compare the `after` digest with a digest of the same files now. Equal means the files are unchanged since it ran; different means they changed, even when HEAD did not move. With partial coverage only a change is certain. When files changed during the run, what it tested is unclear, whatever the digests say now.
+- **Imported:** compare commits. That is sound only when neither the reported run nor the current tree had uncommitted changes; otherwise applicability is unknown.
+
+Briefings and PR summaries say which case applies, whether the receipt was observed or reported, whether it ran on uncommitted changes, and when coverage was partial.
 
 <!-- alethic:schema=receipt -->
 ```yaml
@@ -353,6 +364,7 @@ staleness:
 limits:
   max_glob_matches: 2000
   max_fingerprints_per_record: 50
+  max_receipt_files: 20000  # files digested before and after `receipt run` (§6.5)
 trust:
   ci_provenance: none       # none | github-attestation (§8)
 ```
@@ -495,6 +507,7 @@ Enforcement:
 - Write commands scan every string field and refuse to write anything that matches a secret pattern. `validate` runs the same scan and rejects matching records.
 - The built-in patterns cover PEM private-key blocks; AWS access key ids; Google API keys; GitHub, GitLab, Slack, Stripe, OpenAI, and Anthropic token formats; JWTs; URLs with embedded credentials; and assignments shaped like `password|passwd|secret|token|api[_-]?key` followed by `:` or `=` and a non-placeholder value. Projects add their own patterns with `privacy.extra_secret_patterns`.
 - `receipt.output_tail` is redacted before writing, with matches replaced by `[REDACTED]`.
+- `alethic receipt run` passes the environment to the command but never records it. Its argv is scanned like any other field, so a credential on the command line blocks the receipt instead of being stored.
 - Scanning is a safety net, not a guarantee. Review `.alethic/` diffs like any other code.
 
 `.alethic/local/` is gitignored for per-machine scratch. Tools never read it into shared outputs.
@@ -528,7 +541,7 @@ Rules:
 
 The format is agent-neutral. Integrations are thin:
 
-- **Instruction files.** `alethic render` maintains a marked block (`<!-- alethic:begin -->` … `<!-- alethic:end -->`) in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to run `alethic resume` before non-trivial work, write checkpoints only at meaningful boundaries, record receipts with `alethic receipt add`, never store private content (§13), and run `alethic validate` before closing work. Content outside the block is never touched. Agents do not share one instruction file by default: Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GEMINI.md` unless configured otherwise. A `CLAUDE.md` or `GEMINI.md` that imports `@AGENTS.md` can share the `AGENTS.md` block, and `render` detects that instead of writing a second copy.
+- **Instruction files.** `alethic render` maintains a marked block (`<!-- alethic:begin -->` … `<!-- alethic:end -->`) in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to run `alethic resume` before non-trivial work, write checkpoints only at meaningful boundaries, run checks through `alethic receipt run` (or record ones that already ran with `alethic receipt add`), never store private content (§13), and run `alethic validate` before closing work. Content outside the block is never touched. Agents do not share one instruction file by default: Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GEMINI.md` unless configured otherwise. A `CLAUDE.md` or `GEMINI.md` that imports `@AGENTS.md` can share the `AGENTS.md` block, and `render` detects that instead of writing a second copy.
 - **MCP.** `alethic mcp` exposes the same operations as MCP tools and resources for agents that support MCP. Tools run the same command code as the CLI, including schema validation, path safety, and the secret scan. No MCP tool can mark a record `human-confirmed`: human confirmation goes through the CLI with `--human`.
 - **CLI.** Every agent that can run shell commands can use the CLI directly. Identity comes from `--agent` or `ALETHIC_AGENT`.
 

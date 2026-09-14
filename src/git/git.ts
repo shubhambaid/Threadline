@@ -215,6 +215,12 @@ export async function listTrackedFiles(root: string): Promise<string[]> {
     .sort();
 }
 
+/** Tracked files plus untracked files that are not ignored, repository-relative, sorted. */
+export async function listWorkspaceFiles(root: string): Promise<string[]> {
+  const out = await gitOk(root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);
+  return [...new Set(out.split("\0").filter((file) => file.length > 0))].sort();
+}
+
 /**
  * Content of `path` in the commit that first added it, or undefined if it was never committed.
  * Used to enforce that checkpoints and receipts are append-only.

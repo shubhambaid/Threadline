@@ -36,10 +36,10 @@
 - apps/api/auth/refresh.ts: changed on this branch (commit <sha>)
 
 ## Verified behavior and checks run
-- `pnpm test auth/refresh` passed at <sha> (code unchanged since), 2026-09-13T18:32:00Z. (receipt rcpt-pnpm-test-auth-refresh-20260913t183200z) ⚠ unverified
-- `pnpm test auth` failed (exit 1) at <sha> (code unchanged since), 2026-09-13T18:31:00Z; output ends: "expected 401, received 200". (receipt rcpt-pnpm-test-auth-20260913t183100z) ⚠ unverified
-- `pnpm lint` passed at <sha> (code has changed since), 2026-09-13T18:09:00Z. (receipt rcpt-pnpm-lint-20260913t180900z) ⚠ unverified
-- `pnpm test auth` failed (exit 1) at <sha> (code has changed since), 2026-09-13T18:08:00Z; output ends: "Tests: 1 failed, 38 passed". (receipt rcpt-pnpm-test-auth-20260913t180800z) ⚠ unverified
+- `pnpm test auth/refresh` passed at <sha> (code unchanged since; reported to Aletheic, not observed), 2026-09-13T18:32:00Z. (receipt rcpt-pnpm-test-auth-refresh-20260913t183200z) ⚠ unverified
+- `pnpm test auth` failed (exit 1) at <sha> (code unchanged since; reported to Aletheic, not observed), 2026-09-13T18:31:00Z; output ends: "expected 401, received 200". (receipt rcpt-pnpm-test-auth-20260913t183100z) ⚠ unverified
+- `pnpm lint` passed at <sha> (code has changed since; reported to Aletheic, not observed), 2026-09-13T18:09:00Z. (receipt rcpt-pnpm-lint-20260913t180900z) ⚠ unverified
+- `pnpm test auth` failed (exit 1) at <sha> (code has changed since; reported to Aletheic, not observed), 2026-09-13T18:08:00Z; output ends: "Tests: 1 failed, 38 passed". (receipt rcpt-pnpm-test-auth-20260913t180800z) ⚠ unverified
 
 ## Failed approaches
 - Bump token_version inside the Redis cache entry. Failed because: The cache entry is written before the version check. [cp-invalidate-sessions-after-password-reset-20260913t183300z] ⚠ unverified

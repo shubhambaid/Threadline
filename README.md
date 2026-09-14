@@ -96,7 +96,7 @@ Every record carries a confidence label, an anchor to the code it describes, and
 | `init`, `status`, `validate` | Set up, inspect, and check `.alethic/` |
 | `task start / claim / update / close` | Own work with expiring leases |
 | `decision add / update`, `knowledge add / update` | Record choices and facts |
-| `receipt add` | Record a check that already ran (Aletheic never runs commands) |
+| `receipt run`, `receipt add` | Run a check and record the code it saw, or record a check that already ran |
 | `checkpoint create / list / show` | Hand off unfinished work |
 | `resume` | Compile a cited, budgeted briefing for the next agent |
 | `verify`, `doctor` | Re-anchor checked claims; find stale records and conflicts |

@@ -12,7 +12,7 @@ import { doctorCommand } from "./commands/doctor.js";
 import { initCommand } from "./commands/init.js";
 import { knowledgeAddCommand, knowledgeUpdateCommand } from "./commands/knowledge.js";
 import { mcpCommand } from "./commands/mcp.js";
-import { receiptAddCommand } from "./commands/receipt.js";
+import { receiptAddCommand, receiptRunCommand } from "./commands/receipt.js";
 import { renderCommand } from "./commands/render.js";
 import { resumeCommand } from "./commands/resume.js";
 import { statusCommand } from "./commands/status.js";
@@ -248,6 +248,23 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       .option("--id <id>", "record id (default: derived from the command)"),
   ).action(async (options, command: Command) => {
     exitCode = await receiptAddCommand(ioFor(command), options);
+  });
+
+  withWriteOptions(
+    receipt
+      .command("run")
+      .description(
+        "Run a check and record what it did and the code it ran on (exit 1 if the check fails)",
+      )
+      .argument("<command...>", "the command and its arguments, after --")
+      .option("--summary <text>", "one-line summary")
+      .option(
+        "--paths <globs...>",
+        "only digest files matching these paths (default: the whole working tree)",
+      )
+      .option("--id <id>", "record id (default: derived from the command)"),
+  ).action(async (argv: string[], options, command: Command) => {
+    exitCode = await receiptRunCommand(ioFor(command), argv, options);
   });
 
   const checkpoint = program

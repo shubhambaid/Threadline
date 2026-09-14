@@ -197,7 +197,7 @@ describe("alethic receipt", () => {
         as(repo, "codex"),
       ),
     );
-    expect(result.stdout).toContain("(fail, agent-reported)");
+    expect(result.stdout).toContain("(fail, agent-reported, reported)");
     const receipt = readRecord(repo, ".alethic/receipts/rcpt-pnpm-test-auth-20260913t210000z.yaml");
     expect(receipt).toMatchObject({
       status: "recorded",

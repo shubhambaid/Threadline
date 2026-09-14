@@ -14,7 +14,11 @@ export interface Manifest {
   defaults: { budget: number; lease_minutes: number; default_branch: string };
   privacy: { extra_secret_patterns: string[]; forbidden_globs: string[] };
   staleness: { changed_lines_threshold: number };
-  limits: { max_glob_matches: number; max_fingerprints_per_record: number };
+  limits: {
+    max_glob_matches: number;
+    max_fingerprints_per_record: number;
+    max_receipt_files: number;
+  };
   trust: { ci_provenance: "none" | "github-attestation" };
 }
 
@@ -31,7 +35,7 @@ export const MANIFEST_DEFAULTS: Omit<Manifest, "format_version" | "project"> = {
   defaults: { budget: 2500, lease_minutes: 240, default_branch: "main" },
   privacy: { extra_secret_patterns: [], forbidden_globs: [] },
   staleness: { changed_lines_threshold: 20 },
-  limits: { max_glob_matches: 2000, max_fingerprints_per_record: 50 },
+  limits: { max_glob_matches: 2000, max_fingerprints_per_record: 50, max_receipt_files: 20000 },
   trust: { ci_provenance: "none" },
 };
 

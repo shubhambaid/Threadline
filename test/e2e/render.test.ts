@@ -176,7 +176,7 @@ describe("alethic render pr-summary", () => {
       "- Store token_version on users. Why: One write per user revokes every session. `dec-auth-session-invalidation` ⚠ unverified",
     );
     expect(summary).toMatch(
-      /- Failed: `pnpm test auth` \(exit 1\) at [0-9a-f]{7,}, code unchanged since\. `rcpt-pnpm-test-auth-[0-9t]+z` ⚠ unverified/,
+      /- Failed: `pnpm test auth` \(exit 1\) at [0-9a-f]{7,}, code unchanged since, reported\. `rcpt-pnpm-test-auth-[0-9t]+z` ⚠ unverified/,
     );
     expect(summary).toMatch(
       /### Approaches that did not work\n\n- Delete session rows: Cached refresh tokens stay valid `cp-/,

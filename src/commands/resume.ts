@@ -27,6 +27,7 @@ import {
   shortSha,
 } from "../git/git.js";
 import { createOverlapCheck, findContradictionPairs } from "../trust/conflicts.js";
+import { assessReceipt, createReceiptContext } from "../trust/receipts.js";
 import { assessStaleness, createStalenessContext } from "../trust/staleness.js";
 import {
   assessLedger,
@@ -77,20 +78,22 @@ export async function prepareTask(
 
   const collected = await collect(root, index, task, git, manifest);
   const staleness = await createStalenessContext(root, manifest);
+  const receipts = createReceiptContext(root, manifest, git);
   const assessed: AssessedCandidate[] = [];
   for (const candidate of [...collected.decisions, ...collected.knowledge, ...collected.receipts]) {
     const result = await assessStaleness(staleness, candidate.record.data);
-    let atHead: boolean | undefined;
-    let codeChanged: boolean | undefined;
-    if (candidate.record.kind === "receipt") {
-      const receiptHead = asString(asObject(candidate.record.data.git)?.head);
-      const resolved = receiptHead ? await resolveCommit(root, receiptHead) : undefined;
-      if (resolved && git.head) {
-        atHead = resolved === git.head;
-        codeChanged = atHead ? false : await codeChangedBetween(root, resolved, git.head);
-      }
+    if (candidate.record.kind !== "receipt") {
+      assessed.push({ ...candidate, staleness: result });
+      continue;
     }
-    assessed.push({ ...candidate, staleness: result, atHead, codeChanged });
+    const receipt = await assessReceipt(receipts, candidate.record.data);
+    assessed.push({
+      ...candidate,
+      staleness: result,
+      receipt,
+      atHead: receipt.atHead,
+      codeChanged: receipt.codeChanged,
+    });
   }
 
   const latest = collected.checkpoints[0];

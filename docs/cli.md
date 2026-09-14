@@ -16,6 +16,7 @@ alethic decision add --topic <key> --chosen <text> --rationale <text> [--alterna
 alethic decision update <id> --status proposed|accepted|superseded
 alethic knowledge add --category <category> --body <text> [--summary <text>]
 alethic knowledge update <id> --status active|deprecated
+alethic receipt run [--paths <globs...>] -- <command> [args...]
 alethic receipt add --command "<cmd>" --exit-code <n> [--output-file <path>]
 
 alethic checkpoint create [--task <id>] [--done <text>]... [--failed "<approach>::<why>"]... [--question <text>]... [--next <text>]
@@ -95,9 +96,29 @@ Closed tasks cannot be claimed, updated, or checkpointed.
 - Both accept evidence: `--evidence-file`, `--commit` (a warning if not in the repository), `--check`, `--receipt`, `--issue`, `--pr`.
 - **`update`** changes `status` or `summary`.
 
+## `alethic receipt run`
+
+Runs one check and records what it did and the code it ran on. This is the only command that executes anything: it runs the command you name, in the foreground, and does not schedule, retry, or supervise work.
+
+```console
+$ alethic receipt run --paths "apps/api/auth/**" -- pnpm test auth
+…test output…
+Recorded .alethic/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, exit 1, observed; no files changed while it ran)
+```
+
+- Put the command after `--`. It runs without a shell, in the current directory, with the current environment. Environment variables are never recorded.
+- Output streams through as it arrives (to stderr with `--json`, so stdout stays JSON). The receipt keeps the last 4,000 characters, redacted before storage.
+- The receipt records the argv, working directory, start and end times, duration, exit code (or signal), and `provenance.capture: observed`.
+- Just before and just after the command, it digests the content of every tracked and untracked (not ignored) file outside `.alethic/` and forbidden paths, or only files matching `--paths`. If the digests (or HEAD) differ, the receipt says files changed while it ran. Beyond `limits.max_receipt_files` (default 20,000) files, coverage is recorded as partial, with a warning.
+- A command that cannot start is recorded as `error` with exit code 127.
+- Exit code: 0 when the check passed and was recorded, 1 when it failed or errored and was recorded, 2 when nothing was recorded (for example, a usage error, or a secret in the command line).
+- Confidence is `agent-reported`, or `ci-reported` in CI on a clean tree. Observing the run does not make it `ci-verified`.
+
+Later, `resume` compares the digest with the files as they are then, so an uncommitted edit after the check shows as "files have changed since it ran" even though HEAD did not move.
+
 ## `alethic receipt add`
 
-Records the result of a check that **already ran**. Aletheic never runs commands.
+Records the result of a check that **already ran**, as reported. Aletheic did not observe it, so the receipt is marked `provenance.capture: imported`, and briefings say "reported to Aletheic, not observed". Prefer `receipt run` when you can run the check through Aletheic.
 
 ```console
 $ pnpm test auth > /tmp/auth.log; echo $?

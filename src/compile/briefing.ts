@@ -4,6 +4,7 @@ import type { LoadedRecord } from "../core/store.js";
 import { NOT_DETERMINED, oneLine, truncate } from "../core/text.js";
 import { confirmationState } from "../trust/claims.js";
 import { isVerified } from "../trust/confidence.js";
+import { describeApplicability } from "../trust/receipts.js";
 import { type DerivedStatus, STALE_STATUSES, type StalenessResult } from "../trust/staleness.js";
 import {
   allocate,
@@ -561,14 +562,8 @@ function receiptItem(candidate: ScoredCandidate): BriefingItem {
       : data.result === "fail"
         ? `failed (exit ${code})`
         : `errored (exit ${code})`;
-  const freshness = candidate.atHead
-    ? " (HEAD)"
-    : candidate.codeChanged === false
-      ? " (code unchanged since)"
-      : candidate.codeChanged
-        ? " (code has changed since)"
-        : " (commit not in this repository)";
-  const where = `at ${head}${freshness}`;
+  // Whether the result applies to this code, and whether Aletheic observed it (spec §6.5).
+  const applicability = describeApplicability(candidate.receipt);
   const command = `\`${oneLine(asString(data.command) ?? "?")}\``;
   const lastLine = (asString(data.output_tail) ?? "")
     .split("\n")
@@ -578,8 +573,8 @@ function receiptItem(candidate: ScoredCandidate): BriefingItem {
   const tail = ` (receipt ${id})${markers(data, candidate.staleness)}`;
   return {
     key: `record:${id}`,
-    full: `${command} ${outcome} ${where}, ${asString(data.ran_at) ?? "?"}${lastLine ? `; output ends: "${truncate(lastLine, 160)}"` : ""}.${tail}`,
-    short: `${command} ${outcome} ${where}.${tail}`,
+    full: `${command} ${outcome} at ${head} (${applicability.full}), ${asString(data.ran_at) ?? "?"}${lastLine ? `; output ends: "${truncate(lastLine, 160)}"` : ""}.${tail}`,
+    short: `${command} ${outcome} at ${head} (${applicability.short}).${tail}`,
     pointer: `(receipt ${id})`,
     priority: 0,
   };

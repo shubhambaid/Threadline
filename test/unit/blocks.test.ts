@@ -67,8 +67,8 @@ describe("instruction blocks", () => {
       expect(hasBlock(block)).toBe(true);
       expect(block.split("\n").length).toBeLessThanOrEqual(20);
       expect(Buffer.byteLength(block)).toBeLessThan(2048);
+      expect(block).toContain("alethic receipt run -- <command>");
       expect(block).toContain("alethic receipt add");
-      expect(block).not.toContain("receipt run");
     }
     expect(instructionBlock("claude-md")).toContain("--target claude-code");
     expect(instructionBlock("gemini-md")).toContain("--target gemini");

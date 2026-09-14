@@ -54,7 +54,12 @@
       "type": "object",
       "properties": {
         "max_glob_matches": { "type": "integer", "minimum": 1 },
-        "max_fingerprints_per_record": { "type": "integer", "minimum": 0 }
+        "max_fingerprints_per_record": { "type": "integer", "minimum": 0 },
+        "max_receipt_files": {
+          "description": "Most files `alethic receipt run` digests before and after a command. Beyond it, coverage is recorded as partial.",
+          "type": "integer",
+          "minimum": 1
+        }
       },
       "additionalProperties": false
     },

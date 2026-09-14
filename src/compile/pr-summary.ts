@@ -89,7 +89,8 @@ export function buildPrSummary(input: PrSummaryInput): string {
           : c.codeChanged === false
             ? ", code unchanged since"
             : "";
-      return `- ${result}: \`${oneLine(command)}\` (exit ${String(r.exit_code)}) at ${head}${since}. ${cite(c.id)}${marked(c)}`;
+      const how = c.receipt?.observed ? "observed by `alethic receipt run`" : "reported";
+      return `- ${result}: \`${oneLine(command)}\` (exit ${String(r.exit_code)}) at ${head}${since}, ${how}. ${cite(c.id)}${marked(c)}`;
     });
   section("Checks recorded", checks.length > 0 ? checks : ["- None recorded."]);
 

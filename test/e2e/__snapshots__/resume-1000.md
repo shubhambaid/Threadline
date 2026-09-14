@@ -24,15 +24,15 @@
 - 2 more files: (commit <sha>)
 
 ## Verified behavior and checks run
-- `pnpm test auth/refresh` passed at <sha> (code unchanged since). (receipt rcpt-pnpm-test-auth-refresh-20260913t183200z) ⚠ unverified
-- `pnpm test auth` failed (exit 1) at <sha> (code unchanged since). (receipt rcpt-pnpm-test-auth-20260913t183100z) ⚠ unverified
-- `pnpm lint` passed at <sha> (code has changed since). (receipt rcpt-pnpm-lint-20260913t180900z) ⚠ unverified
-- `pnpm test auth` failed (exit 1) at <sha> (code has changed since). (receipt rcpt-pnpm-test-auth-20260913t180800z) ⚠ unverified
+- `pnpm test auth/refresh` passed at <sha> (code unchanged since, reported). (receipt rcpt-pnpm-test-auth-refresh-20260913t183200z) ⚠ unverified
+- `pnpm test auth` failed (exit 1) at <sha> (code unchanged since, reported). (receipt rcpt-pnpm-test-auth-20260913t183100z) ⚠ unverified
+- `pnpm lint` passed at <sha> (code has changed since, reported). (receipt rcpt-pnpm-lint-20260913t180900z) ⚠ unverified
+- `pnpm test auth` failed (exit 1) at <sha> (code has changed since, reported). (receipt rcpt-pnpm-test-auth-20260913t180800z) ⚠ unverified
 
 ## Failed approaches
 - Bump token_version inside the Redis cache entry. Failed because: The cache entry is written before the version check. [cp-invalidate-sessions-after-password-reset-20260913t183300z] ⚠ unverified
-- Delete all session rows on reset. Failed because: Refresh tokens are cached in Redis for 15 minutes. [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
-- Evict Redis keys with SCAN. Failed because: Too slow on the production cache. [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
+- Delete all session rows on reset: Refresh tokens are cached in Redis for 15 minutes [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
+- Evict Redis keys with SCAN: Too slow on the production cache [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
 
 ## Open questions
 - Does the mobile client retry refresh on 401? [cp-invalidate-sessions-after-password-reset-20260913t183300z]
