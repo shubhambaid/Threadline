@@ -20,6 +20,8 @@ export interface BriefingSection {
   items: BriefingItem[];
   /** Word used in the collapsed line, e.g. "files" in "3 more files: …". */
   pointerNoun?: string;
+  /** Leave the section out entirely when it has no items, instead of "None recorded." */
+  hideWhenEmpty?: boolean;
 }
 
 export interface Allocation {
@@ -39,6 +41,7 @@ export function renderContent(
   levels: ReadonlyMap<string, Level>,
 ): string {
   return sections
+    .filter((section) => !(section.hideWhenEmpty && section.items.length === 0))
     .map((section) => {
       const lines = [`## ${section.title}`];
       const pointers: string[] = [];

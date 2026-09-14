@@ -1,17 +1,17 @@
 import {
   buildBriefing,
   type CheckpointRelation,
+  type IntegrityNotes,
   TARGETS,
   type Target,
 } from "../compile/briefing.js";
-import { collect, type GitState } from "../compile/collect.js";
+import { type Collected, collect, type GitState } from "../compile/collect.js";
 import { type AssessedCandidate, rankCandidates, type ScoredCandidate } from "../compile/score.js";
 import { now } from "../core/clock.js";
 import { UsageError } from "../core/errors.js";
 import { asObject, asString } from "../core/json.js";
-import { loadManifest, type Manifest } from "../core/manifest.js";
+import type { Manifest } from "../core/manifest.js";
 import { checkRepoPath, scopeMatcher } from "../core/paths.js";
-import { loadRecordIndex, requireRecord } from "../core/records.js";
 import type { LoadedRecord } from "../core/store.js";
 import { parseInteger } from "../core/write.js";
 import {
@@ -26,7 +26,15 @@ import {
   resolveCommit,
   shortSha,
 } from "../git/git.js";
+import { createOverlapCheck, findContradictionPairs } from "../trust/conflicts.js";
 import { assessStaleness, createStalenessContext } from "../trust/staleness.js";
+import {
+  assessLedger,
+  type LedgerAssessment,
+  requireManifest,
+  requireUsable,
+} from "../validate/assess.js";
+import { collectReferences } from "../validate/references.js";
 import { type Io, requireInitialized } from "./context.js";
 
 export interface ResumeOptions {
@@ -49,6 +57,8 @@ export interface PreparedTask {
   latestRelation?: CheckpointRelation;
   scopePaths: string[];
   records: ScoredCandidate[];
+  /** Problems with the ledger that the next agent should know about before trusting it. */
+  integrity: IntegrityNotes;
 }
 
 export async function prepareTask(
@@ -56,16 +66,13 @@ export async function prepareTask(
   options: { task?: string; agent?: string },
 ): Promise<PreparedTask> {
   const root = await requireInitialized(io);
-  const { manifest, findings } = await loadManifest(root);
-  if (!manifest) {
-    const problems = findings.map((f) => `${f.path ?? f.file}: ${f.message}`).join("; ");
-    throw new UsageError(`The manifest is invalid (${problems}). Run \`alethic validate\`.`);
-  }
+  const ledger = await assessLedger(root);
+  const manifest = requireManifest(ledger);
+  const index = ledger.index;
 
-  const index = await loadRecordIndex(root);
   const git = await readGitState(root, manifest);
   const task = options.task
-    ? requireRecord(index, options.task, "task", "--task")
+    ? requireUsable(ledger, options.task, "task", "--task")
     : inferTask(index, options.agent ?? io.env.ALETHIC_AGENT, git.branch);
 
   const collected = await collect(root, index, task, git, manifest);
@@ -97,6 +104,7 @@ export async function prepareTask(
       : undefined,
     scopePaths: collected.scopePaths,
     records: rankCandidates(assessed),
+    integrity: await integrityNotes(root, ledger, manifest, task, collected),
   };
 }
 
@@ -122,6 +130,7 @@ export async function resumeCommand(io: Io, options: ResumeOptions): Promise<num
     git: prepared.git,
     scopePaths: prepared.scopePaths,
     records: prepared.records,
+    integrity: prepared.integrity,
   });
 
   if (format === "json") {
@@ -143,6 +152,60 @@ export async function resumeCommand(io: Io, options: ResumeOptions): Promise<num
     );
   }
   return 0;
+}
+
+/**
+ * What the next agent should know about the ledger itself: records withheld because they failed
+ * validation, files that could not be loaded, references the briefing cannot follow, and
+ * contradictory decisions that touch this task. Withheld records are listed whatever their
+ * relevance, since their content cannot be trusted to decide it.
+ */
+async function integrityNotes(
+  root: string,
+  ledger: LedgerAssessment,
+  manifest: Manifest,
+  task: LoadedRecord,
+  collected: Collected,
+): Promise<IntegrityNotes> {
+  const relevant = [
+    task,
+    ...collected.checkpoints,
+    ...[...collected.decisions, ...collected.knowledge, ...collected.receipts].map((c) => c.record),
+  ];
+  const relevantIds = new Set(relevant.map(idOf));
+  const excludedIds = new Set(ledger.excluded.flatMap((entry) => (entry.id ? [entry.id] : [])));
+
+  const seen = new Set<string>();
+  const brokenReferences: IntegrityNotes["brokenReferences"] = [];
+  for (const record of relevant) {
+    const from = idOf(record);
+    for (const ref of collectReferences(record.data)) {
+      const key = `${from}\0${ref.id}`;
+      if (ledger.index.has(ref.id) || seen.has(key)) continue;
+      seen.add(key);
+      brokenReferences.push({ from, to: ref.id, excluded: excludedIds.has(ref.id) });
+    }
+  }
+
+  const pairs = await findContradictionPairs(
+    [...ledger.index.values()],
+    createOverlapCheck(root, manifest),
+  );
+  const contradictions = pairs
+    .map(({ topic, older, newer }) => ({ topic, ids: [idOf(older), idOf(newer)] as const }))
+    .filter(({ ids }) => relevantIds.has(ids[0]) || relevantIds.has(ids[1]))
+    .map(({ topic, ids }) => ({ topic, ids: [ids[0], ids[1]] as [string, string] }));
+
+  return {
+    excluded: ledger.excluded,
+    unloadable: ledger.unloadable,
+    contradictions,
+    brokenReferences,
+  };
+}
+
+function idOf(record: LoadedRecord): string {
+  return asString(record.data.id) ?? record.file;
 }
 
 async function readGitState(root: string, manifest: Manifest): Promise<GitState> {

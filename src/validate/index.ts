@@ -1,8 +1,7 @@
-import path from "node:path";
 import { type Finding, sortFindings } from "../core/findings.js";
-import { APPEND_ONLY_KINDS, isRecordKind, KIND_DIRS, type RecordKind } from "../core/ids.js";
+import { APPEND_ONLY_KINDS } from "../core/ids.js";
 import { asString } from "../core/json.js";
-import { loadManifest, MANIFEST_FILE, type Manifest, resolveManifest } from "../core/manifest.js";
+import type { Manifest } from "../core/manifest.js";
 import {
   type Containment,
   checkContainment,
@@ -10,19 +9,20 @@ import {
   isGlob,
   scopeMatcher,
 } from "../core/paths.js";
-import { type LoadedRecord, loadRecords } from "../core/store.js";
+import type { LoadedRecord } from "../core/store.js";
 import { commitExists, firstCommittedContent, isShallow } from "../git/git.js";
 import { createOverlapCheck, findContradictions } from "../trust/conflicts.js";
 import { assessStaleness, createStalenessContext, type DerivedStatus } from "../trust/staleness.js";
+import { assessLedger, type LedgerAssessment } from "./assess.js";
 import { checkLeases } from "./leases.js";
-import { collectCommits, collectPaths, collectReferences } from "./references.js";
-import { validateAgainst } from "./schema.js";
-import { compileSecretPatterns, type SecretPattern, scanForSecrets } from "./secrets.js";
+import { collectCommits, collectPaths } from "./references.js";
 
 export interface ValidateOptions {
   now: Date;
   /** Treat missing evidence commits as errors instead of warnings. */
   strict?: boolean;
+  /** A ledger already assessed by the caller, so records are not loaded twice. */
+  ledger?: LedgerAssessment;
 }
 
 export interface ValidationReport {
@@ -32,50 +32,26 @@ export interface ValidationReport {
   records: LoadedRecord[];
   /** Undefined when the manifest is missing or invalid. */
   manifest?: Manifest;
+  ledger: LedgerAssessment;
 }
-
-const SPEC_SECTION: Record<RecordKind, string> = {
-  task: "§6.1",
-  decision: "§6.2",
-  knowledge: "§6.3",
-  checkpoint: "§6.4",
-  receipt: "§6.5",
-};
-
-const FALLBACK_MANIFEST = resolveManifest({ project: { name: "unknown" } });
 
 const SHA = /^[0-9a-f]{7,64}$/;
 
-/** Runs every check from docs/spec.md §16 against the repository's Aletheic state. */
+/**
+ * Runs every check from docs/spec.md §16 against the repository's Aletheic state: the shared
+ * record assessment (the same one `resume` relies on), plus checks that need Git or the filesystem.
+ */
 export async function validateRepository(
   root: string,
   options: ValidateOptions,
 ): Promise<ValidationReport> {
-  const manifestLoad = await loadManifest(root);
-  const manifest = manifestLoad.manifest ?? FALLBACK_MANIFEST;
-  const store = await loadRecords(root);
-  const { records } = store;
-  const secrets = compileSecretPatterns(manifest.privacy.extra_secret_patterns);
+  const ledger = options.ledger ?? (await assessLedger(root));
+  const { records, settings: manifest } = ledger;
 
   const findings: Finding[] = [
-    ...manifestLoad.findings,
-    ...store.findings,
-    ...secrets.invalid.map(
-      ({ pattern, error }): Finding => ({
-        severity: "error",
-        code: "manifest-pattern",
-        file: MANIFEST_FILE,
-        path: `privacy.extra_secret_patterns[${manifest.privacy.extra_secret_patterns.indexOf(pattern)}]`,
-        message: `Invalid regular expression: ${error}`,
-      }),
-    ),
-    ...checkSchemas(records),
-    ...checkIdentity(records),
-    ...checkReferences(records),
-    ...checkSecrets(records, secrets.patterns),
+    ...ledger.findings,
     ...checkLeases(records, options.now),
-    ...checkTrust(records, manifest),
-    ...(await checkPaths(root, records, manifest)),
+    ...(await checkContainmentOfPaths(root, records, manifest)),
     ...(await checkCommits(root, records, options.strict ?? false)),
     ...(await checkAppendOnly(root, records)),
     ...(await checkStaleness(root, records, manifest)),
@@ -88,146 +64,13 @@ export async function validateRepository(
     errors: sorted.filter((f) => f.severity === "error").length,
     warnings: sorted.filter((f) => f.severity === "warning").length,
     records,
-    ...(manifestLoad.manifest ? { manifest: manifestLoad.manifest } : {}),
+    ...(ledger.manifest ? { manifest: ledger.manifest } : {}),
+    ledger,
   };
 }
 
-function checkSchemas(records: readonly LoadedRecord[]): Finding[] {
-  return records.flatMap((record) =>
-    validateAgainst(record.kind, record.data).issues.map(
-      (issue): Finding => ({
-        severity: "error",
-        code: "schema",
-        file: record.file,
-        path: issue.path,
-        message: issue.message,
-        hint: `See docs/spec.md ${SPEC_SECTION[record.kind]}.`,
-      }),
-    ),
-  );
-}
-
-function checkIdentity(records: readonly LoadedRecord[]): Finding[] {
-  const findings: Finding[] = [];
-  const byId = new Map<string, LoadedRecord[]>();
-
-  for (const record of records) {
-    const id = asString(record.data.id);
-    const stem = path.posix.basename(record.file, ".yaml");
-    if (id !== undefined && id !== stem) {
-      findings.push({
-        severity: "error",
-        code: "id-mismatch",
-        file: record.file,
-        path: "id",
-        message: `id "${id}" does not match the file name ${stem}.yaml`,
-        hint: `Rename the file to ${id}.yaml, or change the id.`,
-      });
-    }
-    const kind = asString(record.data.kind);
-    if (kind !== undefined && kind !== record.kind && isRecordKind(kind)) {
-      findings.push({
-        severity: "error",
-        code: "kind-mismatch",
-        file: record.file,
-        path: "kind",
-        message: `A ${kind} record is stored in ${KIND_DIRS[record.kind]}/`,
-        hint: `Move it to .alethic/${KIND_DIRS[kind]}/.`,
-      });
-    }
-    if (id) byId.set(id, [...(byId.get(id) ?? []), record]);
-  }
-
-  for (const [id, group] of byId) {
-    if (group.length < 2) continue;
-    for (const record of group) {
-      const others = group.filter((other) => other !== record).map((other) => other.file);
-      findings.push({
-        severity: "error",
-        code: "duplicate-id",
-        file: record.file,
-        path: "id",
-        message: `id "${id}" is also used by ${others.join(", ")}`,
-        hint: "Give each record a unique id.",
-      });
-    }
-  }
-  return findings;
-}
-
-function checkReferences(records: readonly LoadedRecord[]): Finding[] {
-  const byId = new Map<string, LoadedRecord>();
-  for (const record of records) {
-    const id = asString(record.data.id);
-    if (id !== undefined && !byId.has(id)) byId.set(id, record);
-  }
-
-  return records.flatMap((record) =>
-    collectReferences(record.data).flatMap((ref): Finding[] => {
-      const target = byId.get(ref.id);
-      if (!target) {
-        return [
-          {
-            severity: "error",
-            code: "dangling-reference",
-            file: record.file,
-            path: ref.path,
-            message: `${ref.id} does not exist`,
-            hint: "Create the referenced record, or remove the reference.",
-          },
-        ];
-      }
-      const expected = ref.sameKind ? record.kind : ref.expected;
-      if (expected && target.kind !== expected) {
-        return [
-          {
-            severity: "error",
-            code: "wrong-reference-kind",
-            file: record.file,
-            path: ref.path,
-            message: `${ref.id} is a ${target.kind}, but a ${expected} is expected here`,
-          },
-        ];
-      }
-      return [];
-    }),
-  );
-}
-
-function checkSecrets(records: readonly LoadedRecord[], patterns: SecretPattern[]): Finding[] {
-  return records.flatMap((record) =>
-    scanForSecrets(record.data, patterns).map(
-      (secret): Finding => ({
-        severity: "error",
-        code: "secret",
-        file: record.file,
-        path: secret.path,
-        message: `Looks like a ${secret.pattern}`,
-        hint: "Remove it. Records are shared and permanent; never store credentials (docs/spec.md §13).",
-      }),
-    ),
-  );
-}
-
-function checkTrust(records: readonly LoadedRecord[], manifest: Manifest): Finding[] {
-  return records
-    .filter((record) => record.data.confidence === "ci-verified")
-    .map(
-      (record): Finding => ({
-        severity: "error",
-        code: "untrusted-confidence",
-        file: record.file,
-        path: "confidence",
-        message:
-          manifest.trust.ci_provenance === "none"
-            ? "ci-verified requires trusted CI provenance, but trust.ci_provenance is none"
-            : "ci-verified cannot be checked yet: provenance verification is not available in this version",
-        hint: "Use ci-reported for CI self-reports, or agent-reported (docs/spec.md §8).",
-      }),
-    );
-}
-
-async function checkPaths(
+/** Symlink escapes and missing evidence files. Forbidden paths are part of the shared assessment. */
+async function checkContainmentOfPaths(
   root: string,
   records: readonly LoadedRecord[],
   manifest: Manifest,
@@ -246,19 +89,9 @@ async function checkPaths(
   const findings: Finding[] = [];
   for (const record of records) {
     for (const field of collectPaths(record.data)) {
-      // Lexically unsafe paths are already reported by the schema.
+      // Lexically unsafe paths are reported by the schema, forbidden ones by the assessment.
       if (checkRepoPath(field.value) !== undefined || isGlob(field.value)) continue;
-      if (forbidden(field.value)) {
-        findings.push({
-          severity: "error",
-          code: "forbidden-path",
-          file: record.file,
-          path: field.path,
-          message: `${field.value} matches privacy.forbidden_globs`,
-          hint: "Records must not cite or fingerprint forbidden paths. Remove the reference.",
-        });
-        continue;
-      }
+      if (forbidden(field.value)) continue;
       const where = await containment(field.value);
       if (where === "outside") {
         findings.push({

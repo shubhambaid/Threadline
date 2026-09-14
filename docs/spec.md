@@ -477,6 +477,7 @@ Enforcement:
 
 1. **Goal**
 2. **Current repository state**: branch, HEAD, dirty, and changes since base
+   - **Integrity warnings**, only when there are any (see below)
 3. **Relevant architecture and decisions**
 4. **Files changed or likely relevant**
 5. **Verified behavior and checks run**
@@ -491,6 +492,9 @@ Rules:
 - **Honest.** Claims that are not `human-confirmed` or `ci-verified` are marked *unverified*. Records whose derived status is not `fresh` are marked *may be stale*.
 - **Budgeted, approximately.** `--budget` is an **approximate** size target, estimated as `ceil(characters / 4)` tokens. Real tokenizer counts vary by model, so the budget is not a guarantee. Goal, repository state, and next safe action are always included. When space runs out, lower-priority items collapse to one-line summaries, then to "N more: ids…" pointers.
 - The `--target` agent changes only framing hints, such as which instruction file or MCP tools exist, never the content.
+- **Checked before compiled.** Briefings, PR summaries, record views, and MCP record resources use the same record assessment as `validate` (§16). A record with a schema violation, an id or kind mismatch, a duplicate id, secret-like content, a forbidden path, or an untrusted trust label (such as a hand-written `ci-verified`) is **withheld**: none of its content is emitted, and it cannot be selected as the task. Other findings, such as an expired lease or a missing commit, leave a record usable.
+- **Integrity warnings.** When anything is withheld, when a file under `.alethic/` cannot be loaded, when a relevant record refers to a record that is missing or withheld, or when two accepted decisions that touch the task contradict each other (§11), the briefing says so in a section of its own, always in full. Withheld records are named only by file, id, and finding code, so a secret is never echoed. Each kind of warning lists at most five items, then a count. Contradicting decisions are also marked *disputed* where they appear.
+- **Attributed, not authoritative.** Record text is evidence written by the agent or person named in it. It never overrides repository or user instructions, and the briefing says so.
 
 ## 15. Agent compatibility
 

@@ -59,6 +59,12 @@ export function createOverlapCheck(root: string, manifest: Manifest): Overlaps {
   };
 }
 
+export interface Contradiction {
+  topic: string;
+  older: LoadedRecord;
+  newer: LoadedRecord;
+}
+
 /**
  * Two accepted decisions on the same topic whose scopes overlap (or either has no scope), where
  * neither supersedes the other, directly or through a chain (docs/spec.md §11).
@@ -67,6 +73,24 @@ export async function findContradictions(
   records: readonly LoadedRecord[],
   overlaps: Overlaps,
 ): Promise<Finding[]> {
+  return (await findContradictionPairs(records, overlaps)).map(({ topic, older, newer }) => {
+    const [olderId, newerId] = [idOf(older), idOf(newer)];
+    return {
+      severity: "warning",
+      code: "contradiction",
+      file: newer.file,
+      path: "topic",
+      message: `Accepted decisions ${olderId} and ${newerId} both decide ${topic} for overlapping paths, and neither supersedes the other`,
+      hint: `Keep one: \`alethic decision update ${olderId} --status superseded\` (or the other way round), or record a new decision with --supersedes.`,
+    };
+  });
+}
+
+/** The pairs behind `findContradictions`, oldest pair first within each topic. */
+export async function findContradictionPairs(
+  records: readonly LoadedRecord[],
+  overlaps: Overlaps,
+): Promise<Contradiction[]> {
   const decisions = new Map(
     records.filter((r) => r.kind === "decision").map((record) => [idOf(record), record]),
   );
@@ -92,7 +116,7 @@ export async function findContradictions(
     byTopic.set(topic, [...(byTopic.get(topic) ?? []), record]);
   }
 
-  const findings: Finding[] = [];
+  const pairs: Contradiction[] = [];
   for (const [topic, group] of [...byTopic.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     group.sort(byCreation);
     for (let i = 0; i < group.length; i++) {
@@ -103,18 +127,11 @@ export async function findContradictions(
         if (supersedes(newerId, olderId) || supersedes(olderId, newerId)) continue;
         const [scopeA, scopeB] = [scopeOf(older), scopeOf(newer)];
         if (scopeA.length > 0 && scopeB.length > 0 && !(await overlaps(scopeA, scopeB))) continue;
-        findings.push({
-          severity: "warning",
-          code: "contradiction",
-          file: newer.file,
-          path: "topic",
-          message: `Accepted decisions ${olderId} and ${newerId} both decide ${topic} for overlapping paths, and neither supersedes the other`,
-          hint: `Keep one: \`alethic decision update ${olderId} --status superseded\` (or the other way round), or record a new decision with --supersedes.`,
-        });
+        pairs.push({ topic, older, newer });
       }
     }
   }
-  return findings;
+  return pairs;
 }
 
 /** Active tasks with unexpired leases, held by different agents, over overlapping paths. */

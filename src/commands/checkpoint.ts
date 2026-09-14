@@ -28,6 +28,7 @@ import {
   resolveCommit,
   shortSha,
 } from "../git/git.js";
+import { assessLedger, requireUsable } from "../validate/assess.js";
 import { type Io, requireInitialized } from "./context.js";
 import { type CommonWriteOptions, reportWrite } from "./report.js";
 
@@ -214,7 +215,7 @@ export async function checkpointListCommand(
   options: { task?: string; json?: boolean },
 ): Promise<number> {
   const root = await requireInitialized(io);
-  const index = await loadRecordIndex(root);
+  const { index } = await assessLedger(root);
   const checkpoints: CheckpointSummary[] = [...index.values()]
     .filter(
       (record) =>
@@ -250,8 +251,9 @@ export async function checkpointShowCommand(
   options: { json?: boolean },
 ): Promise<number> {
   const root = await requireInitialized(io);
-  const index = await loadRecordIndex(root);
-  const checkpoint = requireRecord(index, id, "checkpoint");
+  const ledger = await assessLedger(root);
+  const { index } = ledger;
+  const checkpoint = requireUsable(ledger, id, "checkpoint");
   const cp = checkpoint.data;
   const taskId = asString(cp.task) ?? "";
   const task = index.get(taskId);

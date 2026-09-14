@@ -7,7 +7,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { type Io, requireInitialized } from "../commands/context.js";
 import { UsageError } from "../core/errors.js";
 import { asObject, asString, isPlainObject } from "../core/json.js";
-import { loadRecordIndex } from "../core/records.js";
+import { assessLedger } from "../validate/assess.js";
 import { TOOLS, type ToolSpec } from "./tools.js";
 
 /** Protocol revisions this server speaks; the newest is offered when a client asks for another. */
@@ -118,7 +118,7 @@ export function createMcpHandler(options: {
       },
     ];
     try {
-      const index = await loadRecordIndex(await requireInitialized(io));
+      const { index } = await assessLedger(await requireInitialized(io));
       const open = [...index.values()]
         .filter((record) => record.kind === "task" && OPEN_TASK.has(String(record.data.status)))
         .sort((a, b) => String(a.data.id).localeCompare(String(b.data.id)));
@@ -147,7 +147,9 @@ export function createMcpHandler(options: {
     if (id) {
       let record: { text: string } | undefined;
       try {
-        record = (await loadRecordIndex(await requireInitialized(io))).get(id);
+        // Only records that pass the shared assessment are served, so a hand-edited record with
+        // a secret or a forged trust label is never emitted.
+        record = (await assessLedger(await requireInitialized(io))).index.get(id);
       } catch (error) {
         if (error instanceof UsageError) throw new RpcError(-32603, error.message);
         throw error;

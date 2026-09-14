@@ -141,7 +141,8 @@ Compiles a briefing for the next agent from records and the current Git state. S
 
 1. **Goal**: the task's intent, status, and owner.
 2. **Current repository state**: branch, HEAD, dirty, changes since base, and how far HEAD has moved since the latest checkpoint, including whether any code outside `.alethic/` changed.
-3. **Relevant architecture and decisions**: decisions and knowledge.
+   - **Integrity warnings**, only when needed: records withheld because they failed validation (named by file and finding code only), files that could not be loaded, references that cannot be followed, and contradictory accepted decisions that touch the task. Always shown in full, at most five items of each kind.
+3. **Relevant architecture and decisions**: decisions and knowledge. Decisions in a contradiction are marked `⚠ disputed`.
 4. **Files changed or likely relevant**: task scope, changes on this branch, and paths changed at the latest checkpoint.
 5. **Verified behavior and checks run**: receipts, noting whether they ran on HEAD, on a commit with the same code, or on code that has changed since.
 6. **Failed approaches**: from every checkpoint for the task, newest first.
