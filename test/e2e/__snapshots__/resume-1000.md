@@ -14,8 +14,10 @@
 - Proposed: Rotate refresh tokens on every use. [dec-auth-token-rotation] ⚠ may be stale: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored ⚠ unverified
 - Refresh tokens are cached in Redis for 15 minutes. [kn-refresh-tokens-are-cached-in-redis-for-15-minutes] ⚠ may be stale: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored ⚠ unverified
 - Tell users that other devices were signed out. [dec-web-login-copy] ⚠ unverified
-- Store token_version on users and reject tokens with an older version. [dec-auth-session-invalidation]
-- 14 more: [dec-auth-admin-override], [dec-auth-email-notice], [dec-auth-device-list], [dec-auth-csrf-tokens], [dec-auth-cookie-flags], [dec-auth-migration-order], [dec-auth-error-messages], [dec-auth-audit-log], [dec-auth-rate-limit], [dec-auth-password-hashing], [dec-auth-refresh-cache], [dec-auth-token-format], [kn-the-auth-test-suite-resets-the-database-before-each-file], [kn-sessions-live-in-the-sessions-table-keyed-by-user]
+- Store token_version on users and reject tokens with an older version. [dec-auth-session-invalidation] ℹ confirmed by maintainer, not authenticated
+- Use the documented approach for admin override. [dec-auth-admin-override] ⚠ unverified
+- Use the documented approach for email notice. [dec-auth-email-notice] ⚠ unverified
+- 12 more: [dec-auth-device-list], [dec-auth-csrf-tokens], [dec-auth-cookie-flags], [dec-auth-migration-order], [dec-auth-error-messages], and 7 others
 
 ## Files changed or likely relevant
 - apps/api/auth/**: task scope [task-invalidate-sessions-after-password-reset]
@@ -28,9 +30,9 @@
 - `pnpm test auth` failed (exit 1) at <sha> (code has changed since). (receipt rcpt-pnpm-test-auth-20260913t180800z) ⚠ unverified
 
 ## Failed approaches
-- Bump token_version inside the Redis cache entry: The cache entry is written before the version check [cp-invalidate-sessions-after-password-reset-20260913t183300z] ⚠ unverified
-- Delete all session rows on reset: Refresh tokens are cached in Redis for 15 minutes [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
-- Evict Redis keys with SCAN: Too slow on the production cache [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
+- Bump token_version inside the Redis cache entry. Failed because: The cache entry is written before the version check. [cp-invalidate-sessions-after-password-reset-20260913t183300z] ⚠ unverified
+- Delete all session rows on reset. Failed because: Refresh tokens are cached in Redis for 15 minutes. [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
+- Evict Redis keys with SCAN. Failed because: Too slow on the production cache. [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
 
 ## Open questions
 - Does the mobile client retry refresh on 401? [cp-invalidate-sessions-after-password-reset-20260913t183300z]

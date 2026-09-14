@@ -6,6 +6,7 @@ import { asString } from "../core/json.js";
 import { loadManifest, MANIFEST_FILE, type Manifest, resolveManifest } from "../core/manifest.js";
 import { checkRepoPath, isGlob, scopeMatcher } from "../core/paths.js";
 import { type LoadedRecord, loadRecords } from "../core/store.js";
+import { confirmationState } from "../trust/claims.js";
 import { collectPaths, collectReferences } from "./references.js";
 import { validateAgainst } from "./schema.js";
 import { compileSecretPatterns, type SecretPattern, scanForSecrets } from "./secrets.js";
@@ -82,6 +83,7 @@ export async function assessLedger(root: string): Promise<LedgerAssessment> {
     ...checkSecrets(records, secrets.patterns),
     ...checkTrust(records, settings),
     ...checkForbiddenPaths(records, settings),
+    ...checkConfirmations(records),
   ];
   const findings: Finding[] = [
     ...manifestLoad.findings,
@@ -314,6 +316,26 @@ function checkTrust(records: readonly LoadedRecord[], manifest: Manifest): Findi
         hint: "Use ci-reported for CI self-reports, or agent-reported (docs/spec.md §8).",
       }),
     );
+}
+
+/** Human confirmations whose claim was edited afterwards (docs/spec.md §8). Not excluding. */
+function checkConfirmations(records: readonly LoadedRecord[]): Finding[] {
+  return records.flatMap((record): Finding[] => {
+    const state = confirmationState(record.kind, record.data);
+    if (state.level !== "outdated") return [];
+    const id = asString(record.data.id) ?? record.file;
+    const who = state.name ?? "the person";
+    return [
+      {
+        severity: "warning",
+        code: "confirmation-outdated",
+        file: record.file,
+        path: "confidence",
+        message: `The claim was edited after ${who} confirmed it, so that confirmation no longer applies`,
+        hint: `Ask ${who} to check the current text, then run \`alethic verify ${id} --human <name>\`; until then it counts as agent-reported.`,
+      },
+    ];
+  });
 }
 
 /** Paths matching `privacy.forbidden_globs`. Lexically unsafe paths are reported by the schema. */

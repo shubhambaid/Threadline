@@ -71,7 +71,7 @@ Every record (task, decision, knowledge, checkpoint, receipt) shares these field
 | `summary` | yes | One line, at most 280 characters. Written for a busy reader. |
 | `status` | yes | Lifecycle state. Allowed values depend on the kind (§6). |
 | `confidence` | yes | Trust level (§8). |
-| `created_by` | yes | `{agent, human?}`. `agent` is a lowercase tool name such as `codex`, `claude-code`, `gemini`, or `human`. |
+| `created_by` | yes | `{agent, human?}`. `agent` is a lowercase tool name such as `codex`, `claude-code`, `gemini`, or `human`. `human` is a name the writer attributes the record to, not an authenticated identity (§8.1). |
 | `created_at` | yes | UTC timestamp ending in `Z`. |
 | `updated_at` | no | UTC timestamp of the last edit. |
 | `valid_at` | no | Commit id the record was true at, for humans and ancestry hints (§9). |
@@ -366,15 +366,36 @@ Every record carries exactly one `confidence`. From lowest to highest trust: `in
 | `inferred` | Derived by reading code or history; nobody observed it directly. | Anyone. |
 | `agent-reported` | An agent observed or did it in its own session. | Any agent. This is the default for agent writes. |
 | `ci-reported` | A self-report made from a CI environment (`CI=true`, clean tree). It carries **the same weight as `agent-reported`**: any local process can set `CI=true`, so the label records where a claim was made, not that anyone checked it. | Tooling, automatically. Receipts also record `provenance.source: ci-env`. |
-| `human-confirmed` | A named human confirmed it. | Only with a non-empty `evidence.human` entry (enforced by schema). Tools set it only when passed `--human <name>`. |
+| `human-confirmed` | A person's confirmation was **recorded**: an `evidence.human` entry names them, says which agent recorded it (`recorded_by`), and is bound to a digest of the claim (`claim_digest`). The name is an attribution by whoever wrote the record, not an authenticated identity (`authentication: none`). | Only with a non-empty `evidence.human` entry (enforced by schema). Tools set it only when passed `--human <name>`, never over MCP. Anyone who can run the CLI or edit the files can pass any name. |
 | `ci-verified` | Backed by CI provenance that can be checked cryptographically. | Only when `manifest.trust.ci_provenance` names a trusted source **and** the cited receipt's `provenance` verifies against it. |
+
+### 8.1 Trust boundary
+
+Aletheic runs with the permissions of whoever invokes it. Any process that can write the working tree (an agent, a person, a script) can create or edit any record, choose any label, and name any person. The format's checks make labels **consistent and visible**, not unforgeable. Identity, evidence provenance, and current applicability are separate questions: `created_by` and `recorded_by` say who wrote something, `confidence` and `evidence` say where a claim comes from, and staleness (§9) says whether it still matches the code.
+
+| Level | Establishes | Does not establish |
+|---|---|---|
+| `inferred` | Someone derived the claim from code or history. | That anyone observed it. |
+| `agent-reported` | The named agent tool wrote the claim. | That it is true, or which session or model wrote it. |
+| `ci-reported` | It was written in an environment reporting `CI=true`, on a clean tree. | That CI ran anything: any process can set `CI`. |
+| `human-confirmed` | The writer recorded that the named person confirmed this exact claim text. | That the person exists, said so, or approved anything. The name is not authenticated. |
+| `ci-verified` | Reserved for verifiable CI provenance. | Cannot be produced in format v1. |
+
+What does protect a repository:
+
+- **Review.** Git history shows which commit added or changed each record; review `.alethic/` diffs like code. If the repository requires signed commits, the signature authenticates the committer, not the person named in `evidence.human`.
+- **Binding.** A confirmation's `claim_digest` is the SHA-256 of the record's claim fields, as canonical JSON with sorted keys: `summary`, `intent`, and `scope` for tasks; `summary`, `topic`, `chosen`, `rationale`, `alternatives`, `scope`, and `supersedes` for decisions; `summary`, `category`, `body`, and `scope` for knowledge; `summary`, `task`, `git`, `done`, `failed_approaches`, `open_questions`, and `next_safe_action` for checkpoints; `summary`, `command`, `exit_code`, `result`, `git`, and `output_tail` for receipts, together with `kind`. Status, confidence, evidence, timestamps, anchors, and ownership are not part of the claim.
+- **Outdated confirmations are visible.** When the claim no longer matches the digest of the latest confirmation, briefings show *unverified: edited after <name> confirmed it*, `validate` warns (`confirmation-outdated`), ranking treats the record as `agent-reported`, and `verify` without `--human` does not restore the label. Update commands that change a confirmed claim downgrade it to `agent-reported` with a warning, keeping the confirmation history.
+- **Older confirmations.** An `evidence.human` entry without `claim_digest` (written before digests existed, or by hand) cannot be tied to the current text, and briefings say so. The new fields are optional, so existing records stay valid; to bind a confirmation, re-confirm with `alethic verify <id> --human <name>`.
+
+Authenticated approval is not part of format v1. If it is added, it will bind a verifiable reviewer identity (for example a signed attestation) to a `claim_digest`, use a distinct `authentication` value, and never be inferred from a `--human` name.
 
 Rules:
 
-1. Trust levels are hard to forge by design. Tools MUST NOT grant `ci-verified` based on environment variables, file paths, agent names, or anything else a local process controls. For the same reason, tools that sort, score, or filter by trust MUST NOT rank `ci-reported` above `agent-reported`.
+1. Labels record provenance; they are not credentials. Tools MUST NOT grant `ci-verified` based on environment variables, file paths, agent names, or anything else a local process controls, and MUST NOT present `human-confirmed` as authenticated approval. Tools that sort, score, or filter by trust MUST NOT rank `ci-reported` above `agent-reported`.
 2. In format v1, `validate` MUST reject `ci-verified` when `trust.ci_provenance` is `none` or absent. The attestation verifier for `github-attestation` is on the roadmap; until it ships, `ci-verified` cannot be produced.
 3. No tool upgrades confidence on its own. Upgrades happen through an explicit action such as `alethic verify <id> --human <name>`, and that action is visible in the Git diff.
-4. Briefings (§14) treat only `human-confirmed` and `ci-verified` as verified. Everything else is shown with an *unverified* marker.
+4. Briefings (§14) show a bound `human-confirmed` record as *confirmed by <name>, as recorded by <agent>; not authenticated*, and an unbound or outdated one with a ⚠ marker. Every lower level is shown as *unverified*.
 5. When evidence commits disappear (squash merge, rebase, shallow clone), the record keeps its confidence, and validators report a warning, not an error (§9). Durable evidence such as PRs, issues, and receipts is preferred over branch-local commit ids.
 
 ## 9. Anchoring and staleness
@@ -497,7 +518,7 @@ Rules:
 - **Deterministic.** The same records and Git state always produce byte-identical output. Retrieval uses task ids, explicit links, path overlap, topic, trust level, recency, and Git state, never embeddings.
 - **Traceable.** Every bullet cites its source: a record id (`[dec-auth-session-rotation]`), a commit (`(commit 83fa2de)`), or a receipt.
 - **Honest.** Claims that are not `human-confirmed` or `ci-verified` are marked *unverified*. Records whose evidence changed are marked *may be stale*, records whose applicability cannot be established are marked *applicability unknown*, and changes only around a record's evidence are noted as such (§9).
-- **Budgeted, approximately.** `--budget` is an **approximate** size target, estimated as `ceil(characters / 4)` tokens. Real tokenizer counts vary by model, so the budget is not a guarantee. Goal, repository state, and next safe action are always included. When space runs out, lower-priority items collapse to one-line summaries, then to "N more: ids…" pointers.
+- **Budgeted, approximately.** `--budget` is an **approximate** size target, estimated as `ceil(characters / 4)` tokens. Real tokenizer counts vary by model, so the budget is not a guarantee. Goal, repository state, and next safe action are always included. When space runs out, lower-priority items collapse to one-line summaries, then to "N more: ids…" pointers. A pointer line cites at most five records and counts the rest ("and 12 others"), so a large ledger cannot make it grow without limit.
 - The `--target` agent changes only framing hints, such as which instruction file or MCP tools exist, never the content.
 - **Checked before compiled.** Briefings, PR summaries, record views, and MCP record resources use the same record assessment as `validate` (§16). A record with a schema violation, an id or kind mismatch, a duplicate id, secret-like content, a forbidden path, or an untrusted trust label (such as a hand-written `ci-verified`) is **withheld**: none of its content is emitted, and it cannot be selected as the task. Other findings, such as an expired lease or a missing commit, leave a record usable.
 - **Integrity warnings.** When anything is withheld, when a file under `.alethic/` cannot be loaded, when a relevant record refers to a record that is missing or withheld, or when two accepted decisions that touch the task contradict each other (§11), the briefing says so in a section of its own, always in full. Withheld records are named only by file, id, and finding code, so a secret is never echoed. Each kind of warning lists at most five items, then a count. Contradicting decisions are also marked *disputed* where they appear.

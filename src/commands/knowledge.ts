@@ -3,12 +3,12 @@ import { makeId } from "../core/ids.js";
 import { loadRecordIndex } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertReferences,
   assertSafePaths,
   buildEvidence,
   compact,
-  confidenceFor,
   createdBy,
   type EvidenceFlags,
   openWriteContext,
@@ -51,25 +51,20 @@ export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions):
   const id = options.id ?? makeId("knowledge", options.summary ?? options.body, ctx.now);
   if (index.has(id)) throw new UsageError(`${id} already exists. Pass --id to choose another id.`);
 
-  const { evidence, warnings } = await buildEvidence(
-    ctx,
-    index,
-    options,
-    options.human ? { name: options.human, note: "Confirmed this fact." } : undefined,
-  );
+  const { evidence, warnings } = await buildEvidence(ctx, index, options);
   const anchored = await anchorFor(
     ctx,
     { scopePaths: paths, evidenceFiles: unique(options.evidenceFile) },
     options.maxFingerprints,
   );
 
-  const record = compact({
+  const draft = compact({
     id,
     kind: "knowledge",
     schema_version: 1,
     summary,
     status: "active",
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     category: options.category,
     body: options.body.trim(),
     scope: { paths },
@@ -80,6 +75,12 @@ export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions):
     valid_at: await validAt(root),
     anchor: anchored.anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "knowledge", draft, {
+        name: options.human,
+        note: "Confirmed this fact.",
+      })
+    : draft;
   const file = await saveRecord(ctx, "knowledge", record);
   reportWrite(
     io,
@@ -87,7 +88,7 @@ export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions):
       id,
       file,
       warnings: [...warnings, ...anchored.warnings],
-      message: `Created ${file} (${options.category}, ${record.confidence})`,
+      message: `Created ${file} (${options.category}, ${String(record.confidence)})`,
     },
     options.json,
   );

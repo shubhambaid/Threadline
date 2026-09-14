@@ -3,12 +3,12 @@ import { makeId } from "../core/ids.js";
 import { loadRecordIndex } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertReferences,
   assertSafePaths,
   buildEvidence,
   compact,
-  confidenceFor,
   createdBy,
   type EvidenceFlags,
   openWriteContext,
@@ -65,25 +65,20 @@ export async function decisionAddCommand(io: Io, options: DecisionAddOptions): P
     );
   }
 
-  const { evidence, warnings } = await buildEvidence(
-    ctx,
-    index,
-    options,
-    options.human ? { name: options.human, note: "Confirmed this decision." } : undefined,
-  );
+  const { evidence, warnings } = await buildEvidence(ctx, index, options);
   const anchored = await anchorFor(
     ctx,
     { scopePaths: paths, evidenceFiles: unique(options.evidenceFile) },
     options.maxFingerprints,
   );
 
-  const record = compact({
+  const draft = compact({
     id,
     kind: "decision",
     schema_version: 1,
     summary: truncate(options.summary ?? options.chosen, 280),
     status,
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     topic: options.topic,
     chosen: options.chosen.trim(),
     rationale: options.rationale.trim(),
@@ -97,6 +92,12 @@ export async function decisionAddCommand(io: Io, options: DecisionAddOptions): P
     valid_at: await validAt(root),
     anchor: anchored.anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "decision", draft, {
+        name: options.human,
+        note: "Confirmed this decision.",
+      })
+    : draft;
   const file = await saveRecord(ctx, "decision", record);
   reportWrite(
     io,
@@ -104,7 +105,7 @@ export async function decisionAddCommand(io: Io, options: DecisionAddOptions): P
       id,
       file,
       warnings: [...warnings, ...anchored.warnings],
-      message: `Created ${file} (${status}, ${record.confidence})`,
+      message: `Created ${file} (${status}, ${String(record.confidence)})`,
     },
     options.json,
   );

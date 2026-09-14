@@ -57,7 +57,8 @@ Every command that writes a record:
 - rejects unsafe paths (absolute, `..`, symlink escapes) and paths matching `privacy.forbidden_globs`;
 - checks that referenced records (`--link`, `--receipt`, `--supersedes`, `--task`) exist and are the right kind;
 - captures an `anchor`: Git blob ids of cited evidence files first, then files matched by `--paths`, up to `limits.max_fingerprints_per_record` (override with `--max-fingerprints <n>`);
-- sets `confidence: agent-reported`, or `human-confirmed` only when `--human <name>` names the person;
+- sets `confidence: agent-reported`, or `human-confirmed` only when `--human <name>` names the person. The confirmation records the name, the agent that recorded it (`recorded_by`), `authentication: none`, and a digest of the claim. The name is an attribution, not an authenticated identity (spec §8.1);
+- when an update changes the claim of a `human-confirmed` record (`--summary`), sets it back to `agent-reported` and warns;
 - accepts `--json` to print `{ id, file, warnings, ... }`.
 
 Repeatable options (`--done`, `--failed`, `--question`, `--alternative`, `--link`, `--receipt`, `--evidence-file`, `--commit`, `--check`, `--issue`, `--pr`, `--supersedes`) may be given more than once. `--paths` takes one or more values.
@@ -152,7 +153,7 @@ Compiles a briefing for the next agent from records and the current Git state. S
 Options:
 
 - `--task <id>`: defaults to the active task owned by `--agent` or `ALETHIC_AGENT`, else the single open task on the current branch, else the single open task.
-- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers. Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
+- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers, which cite at most five records and count the rest. Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
 - `--target`: `codex`, `claude-code`, `gemini`, or `generic`. Only the header and footer change; the content is identical for every target.
 - `--format json`: `{ task, target, budget, tokens, overBudget, sections[{ key, title, items[{ key, level, text }] }] }`.
 
@@ -251,6 +252,7 @@ Finding codes:
 | `uncertain-applicability` | warning | An anchored decision or knowledge record cites evidence that has no fingerprint, so changes to it cannot be detected. |
 | `diverged` | warning | The record was anchored on another line of history, and the content here differs. |
 | `contradiction` | warning | Two accepted decisions on the same topic have overlapping scopes, and neither supersedes the other (spec §11). |
+| `confirmation-outdated` | warning | A `human-confirmed` record's claim was edited after the latest confirmation, so it counts as `agent-reported` until someone confirms it again (spec §8.1). |
 
 A deleted evidence file is reported once, as `missing-evidence-file`, rather than also as stale.
 
@@ -267,7 +269,8 @@ Verified dec-auth-refresh-cache at 4b1e9c2
   anchor: 4 files fingerprinted
 ```
 
-- `--human <name>` sets `human-confirmed` and appends an `evidence.human` entry. `--note` records what the person checked.
+- `--human <name>` sets `human-confirmed` and appends an `evidence.human` entry with the name, `recorded_by` (the agent running the command), `authentication: none`, and a `claim_digest` of the current claim. `--note` records what the person checked. The name is not authenticated: anyone who can run the CLI can pass any name, and briefings say so (spec §8.1).
+- Without `--human`, a confirmation whose claim was edited after it was made is not kept, even if the code is unchanged.
 - Without `--human`, confidence becomes `agent-reported`, unless the anchored content is unchanged. In that case an existing `agent-reported`, `ci-reported`, or `human-confirmed` label is kept. A confirmation made against older code is never carried forward onto code that has changed. `inferred` becomes `agent-reported`.
 - No command can produce `ci-verified`.
 - `--receipt <id>` adds supporting receipts to `evidence.receipts`.

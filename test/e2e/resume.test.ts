@@ -14,7 +14,7 @@ import { expectOk, initializedRepo } from "../helpers/workspace.js";
 
 const CITATION =
   /\[(?:task|dec|kn|cp|rcpt)-[a-z0-9-]+\]|\(commit [0-9a-f]{7,}\)|\(receipt rcpt-[a-z0-9-]+\)/;
-const POINTER_LINE = /^- \d+ more( files)?: /;
+const POINTER_LINE = /^- \d+ more( files?)?: /;
 
 let repo: FixtureRepo;
 

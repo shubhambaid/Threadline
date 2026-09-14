@@ -1,6 +1,8 @@
+import { isRecordKind } from "../core/ids.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import type { LoadedRecord } from "../core/store.js";
 import { NOT_DETERMINED, oneLine, truncate } from "../core/text.js";
+import { confirmationState } from "../trust/claims.js";
 import { isVerified } from "../trust/confidence.js";
 import { type DerivedStatus, STALE_STATUSES, type StalenessResult } from "../trust/staleness.js";
 import {
@@ -119,7 +121,11 @@ function count(n: number, word: string): string {
  * Freshness and trust markers, from the same derived statuses the dashboard shows (spec §9).
  * Any change to direct evidence is flagged; its size only says how much review it needs.
  */
-export function markers(data: Data, staleness?: StalenessResult): string {
+export function markers(
+  data: Data,
+  staleness?: StalenessResult,
+  options: { brief?: boolean } = {},
+): string {
   const parts: string[] = [];
   const reason = staleness?.reasons[0] ?? staleness?.status.replace(/_/g, " ");
   if (staleness && STALE_STATUSES.has(staleness.status)) {
@@ -130,8 +136,33 @@ export function markers(data: Data, staleness?: StalenessResult): string {
   } else if (staleness?.status === "scope_changed") {
     parts.push(`ℹ nearby files changed, cited files did not: ${reason}`);
   }
-  if (!isVerified(data.confidence)) parts.push("⚠ unverified");
+  parts.push(...trustMarkers(data, options.brief ?? false));
   return parts.length > 0 ? ` ${parts.join(" ")}` : "";
+}
+
+/**
+ * Trust markers (spec §8). A human confirmation is shown as an attribution, never as
+ * authenticated approval, and only while it is bound to the text shown. The brief form, used on
+ * one-line summaries, leaves out which agent recorded the confirmation.
+ */
+function trustMarkers(data: Data, brief: boolean): string[] {
+  const kind = asString(data.kind);
+  const state = kind && isRecordKind(kind) ? confirmationState(kind, data) : undefined;
+  const who = state?.name ?? "a person";
+  switch (state?.level) {
+    case "attributed":
+      return [
+        brief || !state.recordedBy
+          ? `ℹ confirmed by ${who}, not authenticated`
+          : `ℹ confirmed by ${who}, as recorded by ${state.recordedBy}; not authenticated`,
+      ];
+    case "unbound":
+      return [`⚠ confirmation by ${who} is not tied to this text; not authenticated`];
+    case "outdated":
+      return [`⚠ unverified: edited after ${who} confirmed it`];
+    default:
+      return isVerified(data.confidence) ? [] : ["⚠ unverified"];
+  }
 }
 
 function fixed(key: string, text: string): BriefingItem {
@@ -314,7 +345,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
     title: "Files changed or likely relevant",
     required: false,
     items: inDisplayOrder(fileItems, SECTION_PRIORITY.files),
-    pointerNoun: "files",
+    pointerNoun: { one: "file", other: "files" },
   };
 
   // Verified behavior and checks run
@@ -491,7 +522,9 @@ function relationText(relation: CheckpointRelation | undefined): string {
 function recordItem(candidate: ScoredCandidate, disputed: ReadonlySet<string>): BriefingItem {
   const data = candidate.record.data;
   const id = candidate.id;
-  const tail = ` [${id}]${disputed.has(id) ? " ⚠ disputed" : ""}${markers(data, candidate.staleness)}`;
+  const dispute = disputed.has(id) ? " ⚠ disputed" : "";
+  const tail = ` [${id}]${dispute}${markers(data, candidate.staleness)}`;
+  const briefTail = ` [${id}]${dispute}${markers(data, candidate.staleness, { brief: true })}`;
   const prefix =
     data.status === "proposed"
       ? "Proposed: "
@@ -500,7 +533,7 @@ function recordItem(candidate: ScoredCandidate, disputed: ReadonlySet<string>): 
         : data.status === "deprecated"
           ? "Deprecated: "
           : "";
-  const summary = `${prefix}${sentence(asString(data.summary) ?? id)}${tail}`;
+  const summary = `${prefix}${sentence(asString(data.summary) ?? id)}${briefTail}`;
   let full: string;
   if (candidate.record.kind === "decision") {
     const alternatives = asArray(data.alternatives).flatMap((entry) => {

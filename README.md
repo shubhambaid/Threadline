@@ -14,7 +14,7 @@ Aletheic records that as reviewable files committed with the code, and compiles 
 
 - **Plain files in Git.** One record per file, so they show up in pull requests and merge like code. No service, account, database, or network access.
 - **Anchored to code.** Records fingerprint the files they describe. When that code changes, the record is flagged *may be stale* instead of being trusted silently. Fingerprints are content-based, so records survive squash merges, rebases, and shallow clones.
-- **Hard-to-forge trust labels.** Agent claims are marked *unverified*. Only a named human upgrades them to `human-confirmed`; setting `CI=true` does not make anything verified.
+- **Honest trust labels.** Agent claims are marked *unverified*. A human confirmation is shown as an attribution ("confirmed by Priya, as recorded by codex; not authenticated"), bound to the exact text confirmed, and flagged when that text changes. Setting `CI=true` does not make anything verified. Labels describe provenance, not identity: see the [trust boundary](docs/spec.md#81-trust-boundary).
 - **Agent-neutral.** A CLI any agent can run, short instruction blocks for `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`, and an MCP server.
 - **Private by default.** Records are scanned for credentials before they are written, and transcripts and customer data do not belong in them.
 

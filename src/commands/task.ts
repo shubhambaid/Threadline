@@ -5,10 +5,10 @@ import { asObject, asString } from "../core/json.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertSafePaths,
   compact,
-  confidenceFor,
   createdBy,
   openWriteContext,
   saveRecord,
@@ -17,6 +17,7 @@ import {
   type WriteContext,
 } from "../core/write.js";
 import { currentBranch } from "../git/git.js";
+import { reconcileConfirmation } from "../trust/claims.js";
 import { validateRepository } from "../validate/index.js";
 import { collectReferences } from "../validate/references.js";
 import { type Io, requireInitialized } from "./context.js";
@@ -91,26 +92,29 @@ export async function taskStartCommand(
 
   const { anchor, warnings } = await anchorFor(ctx, { scopePaths: paths }, options.maxFingerprints);
   const leaseExpiresAt = leaseUntil(ctx);
-  const record = compact({
+  const draft = compact({
     id,
     kind: "task",
     schema_version: 1,
     summary: truncate(options.summary ?? intent, 280),
     status: "active",
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     intent: intent.trim(),
     branch: options.branch ?? (await currentBranch(root)),
     owner: { agent: ctx.agent, claimed_at: ctx.timestamp, lease_expires_at: leaseExpiresAt },
     next_action: options.next,
     scope: { paths },
-    evidence: options.human
-      ? { human: [{ name: options.human, at: ctx.timestamp, note: "Confirmed the task intent." }] }
-      : undefined,
     created_by: createdBy(ctx, options.human),
     created_at: ctx.timestamp,
     valid_at: await validAt(root),
     anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "task", draft, {
+        name: options.human,
+        note: "Confirmed the task intent.",
+      })
+    : draft;
 
   const file = await saveRecord(ctx, "task", record);
   reportWrite(
@@ -202,17 +206,22 @@ export async function taskUpdateCommand(
   assertOpen(id, task.data);
   assertNotHeldByOther(ctx, id, task.data, options.force);
 
-  const updated = {
+  const { record: updated, warning } = reconcileConfirmation("task", id, task.data, {
     ...task.data,
     ...(status ? { status } : {}),
     ...(next ? { next_action: next } : {}),
     ...(summary ? { summary: truncate(summary, 280) } : {}),
     updated_at: ctx.timestamp,
-  };
+  });
   const file = await saveRecord(ctx, "task", updated, { overwrite: true });
   reportWrite(
     io,
-    { id, file, message: `Updated ${file}${status ? ` (status: ${status})` : ""}` },
+    {
+      id,
+      file,
+      warnings: warning ? [warning] : [],
+      message: `Updated ${file}${status ? ` (status: ${status})` : ""}`,
+    },
     options.json,
   );
   return 0;
@@ -266,13 +275,17 @@ export async function taskCloseCommand(
     return 1;
   }
 
-  const updated = {
+  const { record: updated, warning } = reconcileConfirmation("task", id, task.data, {
     ...task.data,
     status,
     ...(options.summary ? { summary: truncate(options.summary, 280) } : {}),
     updated_at: ctx.timestamp,
-  };
+  });
   const file = await saveRecord(ctx, "task", updated, { overwrite: true });
-  reportWrite(io, { id, file, message: `Closed ${id} (${status})` }, options.json);
+  reportWrite(
+    io,
+    { id, file, warnings: warning ? [warning] : [], message: `Closed ${id} (${status})` },
+    options.json,
+  );
   return 0;
 }

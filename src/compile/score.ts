@@ -1,4 +1,5 @@
 import { asString } from "../core/json.js";
+import { effectiveConfidence } from "../trust/claims.js";
 import { trustRank } from "../trust/confidence.js";
 import type { StalenessResult } from "../trust/staleness.js";
 import { type Candidate, REASON_WEIGHT } from "./collect.js";
@@ -18,11 +19,12 @@ export interface ScoredCandidate extends AssessedCandidate {
 /**
  * Relevance, not truth. Staleness does not lower the score: a record that may be stale is
  * exactly what an incoming agent needs to see, with its warning, rather than have hidden.
+ * A human confirmation of text that was edited afterwards ranks as a plain agent report.
  */
 export function scoreCandidate(candidate: AssessedCandidate): number {
   const weights = candidate.reasons.map((reason) => REASON_WEIGHT[reason]).sort((a, b) => b - a);
   let score = (weights[0] ?? 0) + 5 * Math.max(0, weights.length - 1);
-  score += 5 * trustRank(candidate.record.data.confidence);
+  score += 5 * trustRank(effectiveConfidence(candidate.record.kind, candidate.record.data));
   if (candidate.record.kind === "decision" && candidate.record.data.status === "accepted") {
     score += 10;
   }

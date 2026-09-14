@@ -6,10 +6,10 @@ import { loadRecordIndex, requireRecord } from "../core/records.js";
 import type { LoadedRecord } from "../core/store.js";
 import { NOT_DETERMINED, truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertReferences,
   compact,
-  confidenceFor,
   createdBy,
   openWriteContext,
   parsePair,
@@ -149,7 +149,7 @@ export async function checkpointCreateCommand(
     options.maxFingerprints,
   );
 
-  const record = compact({
+  const draft = compact({
     id,
     kind: "checkpoint",
     schema_version: 1,
@@ -158,7 +158,7 @@ export async function checkpointCreateCommand(
       280,
     ),
     status: "recorded",
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     task: taskId,
     git: { branch, base, head: headShort, dirty, changed_paths: changedPaths },
     done: unique(options.done),
@@ -168,14 +168,17 @@ export async function checkpointCreateCommand(
     receipts,
     scope: { paths: scopePaths },
     links,
-    evidence: options.human
-      ? { human: [{ name: options.human, at: ctx.timestamp, note: "Reviewed this checkpoint." }] }
-      : undefined,
     created_by: createdBy(ctx, options.human),
     created_at: ctx.timestamp,
     valid_at: headShort,
     anchor: anchored.anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "checkpoint", draft, {
+        name: options.human,
+        note: "Reviewed this checkpoint.",
+      })
+    : draft;
   const file = await saveRecord(ctx, "checkpoint", record);
 
   const warnings = [...anchored.warnings];

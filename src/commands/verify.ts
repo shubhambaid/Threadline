@@ -3,6 +3,7 @@ import { APPEND_ONLY_KINDS } from "../core/ids.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertFilesExist,
   assertReferences,
@@ -11,6 +12,7 @@ import {
   unique,
   validAt,
 } from "../core/write.js";
+import { confirmationState } from "../trust/claims.js";
 import { assessStaleness, createStalenessContext } from "../trust/staleness.js";
 import { type Io, requireInitialized } from "./context.js";
 import { type CommonWriteOptions, reportWrite } from "./report.js";
@@ -48,8 +50,9 @@ function sameAnchor(before: unknown, after: unknown): boolean {
 
 /**
  * Re-anchors a record to HEAD after someone checked it still holds (docs/spec.md §8 rule 3, §9).
- * Confidence rises only to `human-confirmed`, and only with a named human. When the anchored
- * content changed, an earlier human or CI label is not carried over onto code nobody confirmed.
+ * Confidence rises only to `human-confirmed`, and only with a named human, whose confirmation is
+ * bound to the current claim. An earlier label is not carried over when the anchored content
+ * changed, or when the claim itself was edited after a person confirmed it.
  */
 export async function verifyCommand(io: Io, id: string, options: VerifyOptions): Promise<number> {
   if (options.note && !options.human) throw new UsageError("--note describes a --human check.");
@@ -93,38 +96,39 @@ export async function verifyCommand(io: Io, id: string, options: VerifyOptions):
 
   const previous = asString(data.confidence) ?? "inferred";
   const unchanged = sameAnchor(data.anchor, anchored.anchor);
-  const confidence = options.human
-    ? "human-confirmed"
-    : unchanged && KEEPABLE.has(previous)
-      ? previous
-      : "agent-reported";
+  const outdated = confirmationState(record.kind, data).level === "outdated";
+  const keep = unchanged && KEEPABLE.has(previous) && !outdated;
+  const confidence = options.human ? "human-confirmed" : keep ? previous : "agent-reported";
   const warnings = [...anchored.warnings];
   if (!options.human && KEEPABLE.has(previous) && previous !== confidence) {
+    const why = unchanged
+      ? "the claim was edited after it was confirmed"
+      : "the anchored content changed since it was confirmed";
     warnings.push(
-      `Confidence changed from ${previous} to agent-reported: the anchored content changed since it was confirmed. Pass --human <name> if a person checked it again.`,
+      `Confidence changed from ${previous} to agent-reported: ${why}. Pass --human <name> if a person checked it again.`,
     );
   }
 
   const nextEvidence: Record<string, unknown> = { ...evidence };
   if (receipts.length > 0)
     nextEvidence.receipts = unique([...strings(evidence.receipts), ...receipts]);
-  if (options.human) {
-    nextEvidence.human = [
-      ...asArray(evidence.human),
-      { name: options.human, at: ctx.timestamp, note: options.note ?? `Verified at ${head}.` },
-    ];
-  }
 
   const updated: Record<string, unknown> = {
     ...data,
-    confidence,
+    confidence: options.human ? "agent-reported" : confidence,
     valid_at: head,
     anchor: anchored.anchor,
     updated_at: ctx.timestamp,
   };
   if (Object.keys(nextEvidence).length > 0) updated.evidence = nextEvidence;
   if (!anchored.anchor) delete updated.anchor;
-  const file = await saveRecord(ctx, record.kind, updated, { overwrite: true });
+  const final = options.human
+    ? addHumanConfirmation(ctx, record.kind, updated, {
+        name: options.human,
+        note: options.note ?? `Verified at ${head}.`,
+      })
+    : updated;
+  const file = await saveRecord(ctx, record.kind, final, { overwrite: true });
 
   const was =
     before.status === "unchanged" || before.status === "unanchored"
@@ -139,7 +143,7 @@ export async function verifyCommand(io: Io, id: string, options: VerifyOptions):
       message: [
         `Verified ${id} at ${head}`,
         `  was: ${was}`,
-        `  confidence: ${confidence}${options.human ? ` (confirmed by ${options.human})` : ""}`,
+        `  confidence: ${confidence}${options.human ? ` (confirmation by ${options.human} recorded by ${ctx.agent}; not authenticated)` : ""}`,
         `  anchor: ${Object.keys(anchored.anchor?.fingerprints ?? {}).length} files fingerprinted`,
       ].join("\n"),
       details: { previousStatus: before.status, confidence, validAt: head },

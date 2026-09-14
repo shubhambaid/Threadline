@@ -58,12 +58,26 @@
       "additionalProperties": false
     },
     "humanConfirmation": {
+      "description": "A recorded claim that a named person confirmed the record. The name is an attribution made by the writer, not an authenticated identity (docs/spec.md §8).",
       "type": "object",
       "required": ["name", "at"],
       "properties": {
         "name": { "type": "string", "minLength": 1, "maxLength": 100 },
         "at": { "$ref": "#/$defs/timestamp" },
-        "note": { "$ref": "#/$defs/text" }
+        "note": { "$ref": "#/$defs/text" },
+        "recorded_by": {
+          "description": "The agent that wrote this confirmation into the record.",
+          "$ref": "#/$defs/agentName"
+        },
+        "authentication": {
+          "description": "How the named person's identity was established. Format v1 has no authenticated approval, so the only value is none.",
+          "enum": ["none"]
+        },
+        "claim_digest": {
+          "description": "SHA-256 of the record's claim fields when the person confirmed it. When the claim changes, the confirmation no longer applies.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       },
       "additionalProperties": false
     },

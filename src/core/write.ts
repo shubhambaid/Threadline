@@ -1,4 +1,5 @@
 import { headCommit, resolveCommit, shortSha } from "../git/git.js";
+import { claimDigest } from "../trust/claims.js";
 import { validateAgainst } from "../validate/schema.js";
 import { compileSecretPatterns, type SecretPattern, scanForSecrets } from "../validate/secrets.js";
 import { type Anchor, type AnchorInput, captureAnchor } from "./anchor.js";
@@ -6,7 +7,7 @@ import { now as clockNow, toTimestamp } from "./clock.js";
 import { UsageError } from "./errors.js";
 import { resolveAgent } from "./identity.js";
 import type { RecordKind } from "./ids.js";
-import { isPlainObject } from "./json.js";
+import { asArray, asObject, isPlainObject } from "./json.js";
 import { loadManifest, type Manifest } from "./manifest.js";
 import {
   checkContainment,
@@ -169,7 +170,6 @@ export async function buildEvidence(
   ctx: WriteContext,
   index: ReadonlyMap<string, LoadedRecord>,
   flags: EvidenceFlags,
-  human?: { name: string; note: string },
 ): Promise<{ evidence: Record<string, unknown>; warnings: string[] }> {
   const warnings: string[] = [];
   const files = unique(flags.evidenceFile);
@@ -196,13 +196,41 @@ export async function buildEvidence(
     receipts,
     issues: unique(flags.issue),
     prs: unique(flags.pr),
-    human: human ? [{ name: human.name, at: ctx.timestamp, note: human.note }] : undefined,
   });
   return { evidence, warnings };
 }
 
-export function confidenceFor(human: string | undefined): "human-confirmed" | "agent-reported" {
-  return human ? "human-confirmed" : "agent-reported";
+/**
+ * Records that a named person confirmed this exact claim, and marks the record `human-confirmed`.
+ * The confirmation says who recorded it and is bound to a digest of the claim, so a later edit
+ * leaves it visibly outdated. The name is an attribution by `ctx.agent`, not an authenticated
+ * identity (docs/spec.md §8).
+ */
+export function addHumanConfirmation(
+  ctx: WriteContext,
+  kind: RecordKind,
+  record: Record<string, unknown>,
+  human: { name: string; note: string },
+): Record<string, unknown> {
+  const evidence = asObject(record.evidence) ?? {};
+  return {
+    ...record,
+    confidence: "human-confirmed",
+    evidence: {
+      ...evidence,
+      human: [
+        ...asArray(evidence.human),
+        {
+          name: human.name,
+          at: ctx.timestamp,
+          note: human.note,
+          recorded_by: ctx.agent,
+          authentication: "none",
+          claim_digest: claimDigest(kind, record),
+        },
+      ],
+    },
+  };
 }
 
 export function createdBy(ctx: WriteContext, human: string | undefined): Record<string, unknown> {

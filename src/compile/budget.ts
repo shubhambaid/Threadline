@@ -18,8 +18,8 @@ export interface BriefingSection {
   /** Required sections always render every item in full. */
   required: boolean;
   items: BriefingItem[];
-  /** Word used in the collapsed line, e.g. "files" in "3 more files: …". */
-  pointerNoun?: string;
+  /** Noun used in the collapsed line, e.g. "files" in "3 more files: …". */
+  pointerNoun?: { one: string; other: string };
   /** Leave the section out entirely when it has no items, instead of "None recorded." */
   hideWhenEmpty?: boolean;
 }
@@ -30,6 +30,12 @@ export interface Allocation {
   tokens: number;
   overBudget: boolean;
 }
+
+/**
+ * A collapsed "N more" line cites at most this many records and counts the rest, so hidden
+ * records cannot make it grow without limit. Every item stays listed in `resume --format json`.
+ */
+export const MAX_POINTERS = 5;
 
 /** Approximate tokens as characters / 4: deterministic and tokenizer-independent. */
 export function estimateTokens(text: string): number {
@@ -56,8 +62,14 @@ export function renderContent(
         }
       }
       if (hidden > 0) {
-        const noun = section.pointerNoun ? ` ${section.pointerNoun}` : "";
-        lines.push(`- ${hidden} more${noun}: ${pointers.join(", ")}`);
+        const noun = section.pointerNoun
+          ? ` ${hidden === 1 ? section.pointerNoun.one : section.pointerNoun.other}`
+          : "";
+        const shown = pointers.slice(0, MAX_POINTERS);
+        const rest = pointers.length - shown.length;
+        lines.push(
+          `- ${hidden} more${noun}: ${shown.join(", ")}${rest > 0 ? `, and ${rest} ${rest === 1 ? "other" : "others"}` : ""}`,
+        );
       }
       if (section.items.length === 0) lines.push("None recorded.");
       return lines.join("\n");

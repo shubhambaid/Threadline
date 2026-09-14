@@ -112,7 +112,14 @@ describe("staleness in validate, and alethic verify", () => {
     const confirmed = readRecord(repo, DECISION_FILE);
     expect(confirmed.confidence).toBe("human-confirmed");
     expect((confirmed.evidence as { human: unknown[] }).human).toEqual([
-      { name: "Priya", at: NOW, note: "Read refresh.ts" },
+      {
+        name: "Priya",
+        at: NOW,
+        note: "Read refresh.ts",
+        recorded_by: "claude-code",
+        authentication: "none",
+        claim_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+      },
     ]);
 
     // Re-verifying unchanged content keeps the human confirmation.
