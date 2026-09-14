@@ -1911,7 +1911,7 @@ export function clientMain(): void {
           ? h(
               "p",
               { class: "banner banner-warn" },
-              "Over budget: the sections that are never shortened do not fit. " + result.policy,
+              `Over budget: the sections that are never shortened do not fit. ${result.policy}`,
             )
           : h("p", { class: "muted small" }, result.policy),
       ),
