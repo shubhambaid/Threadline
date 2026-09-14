@@ -71,7 +71,7 @@ Every record (task, decision, knowledge, checkpoint, receipt) shares these field
 | `summary` | yes | One line, at most 280 characters. Written for a busy reader. |
 | `status` | yes | Lifecycle state. Allowed values depend on the kind (§6). |
 | `confidence` | yes | Trust level (§8). |
-| `created_by` | yes | `{agent, human?}`. `agent` is a lowercase tool name such as `codex`, `claude-code`, `gemini`, or `human`. `human` is a name the writer attributes the record to, not an authenticated identity (§8.1). |
+| `created_by` | yes | `{agent, session?, model?, human?}`. `agent` is a lowercase tool name such as `codex`, `claude-code`, `gemini`, or `human`. `session` identifies one run of that tool, so two sessions of the same tool are different writers (§12). `model` is recorded only when the caller states it. `human` is a name the writer attributes the record to, not an authenticated identity (§8.1). |
 | `created_at` | yes | UTC timestamp ending in `Z`. |
 | `updated_at` | no | UTC timestamp of the last edit. |
 | `valid_at` | no | Commit id the record was true at, for humans and ancestry hints (§9). |
@@ -476,7 +476,9 @@ Aletheic relies on Git to merge records and adds checks for the conflicts Git ca
 | Two branches create the same id | A Git add/add conflict. Timestamped ids make this unlikely for checkpoints and receipts. |
 | Checkpoints and receipts | Append-only. `validate` rejects a committed checkpoint or receipt whose content differs from the version first committed. |
 | Two `accepted` decisions with the same `topic` and overlapping scope, neither superseding the other | A **contradiction**, reported by `validate` (warning) and `doctor`. |
-| Two `active` tasks with unexpired leases held by different agents over overlapping paths | An **overlapping claim**, reported by `doctor`. |
+| Two `active` tasks with unexpired leases held by different writers over overlapping paths: different agents, or two recorded sessions of the same agent | An **overlapping claim**, reported by `doctor` with both writers and sessions. |
+| Two sessions edit the same task, decision, or knowledge record on one working tree | The second write is refused because the file changed after it was read (§12); nothing is lost. |
+| A checkpoint written by another writer while the task's current owner held its lease, usually from merged branches | A **competing claim**, reported by `doctor` with both attributions (§12). |
 | A checkpoint whose task is `done` or `abandoned` | Reported by `doctor` as orphaned work. |
 
 Resolving a contradiction means writing a new decision that `supersedes` the loser, or setting the loser to `status: superseded`.
@@ -489,6 +491,10 @@ An `active` task has an `owner` with a lease, which signals to other agents that
 - Claiming a task whose lease is held by another agent and has not expired fails without `--force`. Renewing your own lease always succeeds.
 - An `active` task whose lease has expired is **invalid**: `validate` rejects it. An agent that stops work MUST either hand off (write a checkpoint and set `status: paused`) or renew. This keeps abandoned claims from blocking other agents.
 - Leases are advisory coordination, not locks. Git remains the source of truth.
+- **Sessions.** `owner.session` and `created_by.session` record which run of an agent tool wrote something (`ALETHIC_SESSION`; each `alethic mcp` connection gets its own id when the variable is unset). Two sessions of the same tool are different writers: a lease that names a session is held against every other session, including a caller that names no session, and overlapping claims by two sessions of one tool are reported. A lease without a session can be renewed by any session of its agent, because nothing recorded tells them apart. `created_by.model` records the model only when the caller states it (`ALETHIC_MODEL`).
+- **Scope of a lease.** A lease describes the repository state an agent can see. It is not a global lock: two clones or branches can each hold a lease on the same task until their records meet in a merge.
+- **Competing writes on one working tree.** Replacing a task, decision, or knowledge record takes a short lock and checks that the file still has the content the command read. If another writer changed it in between, nothing is written and the command says so; running it again applies the change to the current version. Creating a record fails if the file appeared in the meantime, so a checkpoint or receipt is never silently replaced.
+- **Competing claims after a merge.** When branches that claimed the same task are merged, Git leaves one `owner` (a conflict a person resolves). `doctor` then reports checkpoints written by a different writer while the surviving owner's lease was in force (`competing-claim`), naming both writers and sessions, so the team can decide which session continues and have it `task claim --force`.
 
 ## 13. Privacy boundary
 

@@ -77,4 +77,5 @@ Claude Code passes `CLAUDE_PROJECT_DIR` to the servers it starts, and `alethic m
 
 - It never runs commands. `receipt_record` records the result of a check Claude already ran.
 - It cannot mark anything `human-confirmed`. A person does that with the CLI and `--human <name>`.
+- Each MCP connection is recorded as its own session (`created_by.session`, an `mcp-…` id) unless `ALETHIC_SESSION` is set in the server's environment, so two Claude Code sessions working at once are told apart.
 - It writes only through the same code as the CLI, so records with secrets, unsafe paths, or schema errors are refused with the same messages.

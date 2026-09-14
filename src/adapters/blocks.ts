@@ -32,7 +32,7 @@ export function instructionBlock(kind: InstructionKind): string {
     "This repository keeps shared task memory in `.alethic/` so work can move between agents without chat history.",
     "",
     `- Before non-trivial work, run \`alethic resume --target ${agent}\` and read the briefing. Items marked ⚠ are claims to check, not facts.`,
-    `- Identify yourself with \`ALETHIC_AGENT=${agent}\` or \`--agent ${agent}\`. Claim a task before changing it: \`alethic task claim <id>\`, or \`alethic task start "<intent>" --paths <globs>\`.`,
+    `- Identify yourself with \`ALETHIC_AGENT=${agent}\` and, once per session, \`export ALETHIC_SESSION=$(alethic session new)\`. Claim a task before changing it: \`alethic task claim <id>\`, or \`alethic task start "<intent>" --paths <globs>\`.`,
     '- Run checks through Aletheic so the result and the code it saw are recorded: `alethic receipt run -- <command>`. For a check that already ran, use `alethic receipt add --command "<cmd>" --exit-code <n> --output-file <log>`.',
     "- Record choices with `alethic decision add` and durable facts with `alethic knowledge add`.",
     '- Checkpoint only at meaningful boundaries (before stopping or handing off, after a decision, after an approach fails): `alethic checkpoint create --next "<next step>"`.',

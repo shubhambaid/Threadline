@@ -15,6 +15,7 @@ import { mcpCommand } from "./commands/mcp.js";
 import { receiptAddCommand, receiptRunCommand } from "./commands/receipt.js";
 import { renderCommand } from "./commands/render.js";
 import { resumeCommand } from "./commands/resume.js";
+import { sessionNewCommand } from "./commands/session.js";
 import { showCommand } from "./commands/show.js";
 import { statusCommand } from "./commands/status.js";
 import {
@@ -98,6 +99,18 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--json", "print machine-readable status")
     .action(async (options, command: Command) => {
       exitCode = await statusCommand(ioFor(command), options);
+    });
+
+  program
+    .command("session")
+    .description("Identify agent sessions")
+    .command("new")
+    .description(
+      "Print a fresh id for ALETHIC_SESSION: export ALETHIC_SESSION=$(alethic session new)",
+    )
+    .option("--agent <name>", "prefix the id with this agent name (default: $ALETHIC_AGENT)")
+    .action(async (options, command: Command) => {
+      exitCode = await sessionNewCommand(ioFor(command), options);
     });
 
   const task = program.command("task").description("Start, claim, update, and close tasks");

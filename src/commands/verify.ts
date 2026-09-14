@@ -128,7 +128,10 @@ export async function verifyCommand(io: Io, id: string, options: VerifyOptions):
         note: options.note ?? `Verified at ${head}.`,
       })
     : updated;
-  const file = await saveRecord(ctx, record.kind, final, { overwrite: true });
+  const file = await saveRecord(ctx, record.kind, final, {
+    overwrite: true,
+    expected: record.text,
+  });
 
   const was =
     before.status === "unchanged" || before.status === "unanchored"

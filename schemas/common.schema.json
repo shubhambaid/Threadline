@@ -37,11 +37,23 @@
     "confidence": {
       "enum": ["inferred", "agent-reported", "ci-reported", "human-confirmed", "ci-verified"]
     },
+    "sessionId": {
+      "description": "One run of an agent tool (ALETHIC_SESSION). Two sessions of the same tool are different writers.",
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$"
+    },
     "createdBy": {
       "type": "object",
       "required": ["agent"],
       "properties": {
         "agent": { "$ref": "#/$defs/agentName" },
+        "session": { "$ref": "#/$defs/sessionId" },
+        "model": {
+          "description": "The model behind the session, only when the caller stated it (ALETHIC_MODEL).",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
         "human": { "type": "string", "minLength": 1, "maxLength": 100 }
       },
       "additionalProperties": false

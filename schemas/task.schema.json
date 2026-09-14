@@ -22,6 +22,7 @@
       "required": ["agent", "claimed_at", "lease_expires_at"],
       "properties": {
         "agent": { "$ref": "urn:alethic:v1:common#/$defs/agentName" },
+        "session": { "$ref": "urn:alethic:v1:common#/$defs/sessionId" },
         "claimed_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" },
         "lease_expires_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" }
       },

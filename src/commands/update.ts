@@ -34,7 +34,7 @@ export async function updateRecordCommand(
     ...(options.summary ? { summary: truncate(options.summary, 280) } : {}),
     updated_at: ctx.timestamp,
   });
-  const file = await saveRecord(ctx, kind, updated, { overwrite: true });
+  const file = await saveRecord(ctx, kind, updated, { overwrite: true, expected: record.text });
   reportWrite(
     io,
     {

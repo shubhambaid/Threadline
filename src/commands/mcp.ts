@@ -1,4 +1,5 @@
 import { UsageError } from "../core/errors.js";
+import { newSessionId } from "../core/identity.js";
 import { isInitialized } from "../core/manifest.js";
 import { createMcpHandler, type RunCli } from "../mcp/server.js";
 import { serveStdio } from "../mcp/stdio.js";
@@ -19,7 +20,10 @@ export async function mcpCommand(io: Io, run: RunCli): Promise<number> {
     if (!(error instanceof UsageError)) throw error;
     io.stderr(`alethic mcp: ${error.message}\n`);
   }
-  const handler = createMcpHandler({ io: { ...io, cwd }, run });
+  // Each MCP connection is one session. Without ALETHIC_SESSION, give it an id of its own, so two
+  // concurrent sessions of the same agent tool are recorded as different writers.
+  const env = io.env.ALETHIC_SESSION ? io.env : { ...io.env, ALETHIC_SESSION: newSessionId("mcp") };
+  const handler = createMcpHandler({ io: { ...io, cwd, env }, run });
   await serveStdio(handler, io.stdin ?? process.stdin, io.stdout);
   return 0;
 }

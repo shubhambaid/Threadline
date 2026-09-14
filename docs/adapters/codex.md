@@ -61,4 +61,5 @@ The server works on the Git repository containing its working directory. To pin 
 
 - It never runs commands. `receipt_record` records the result of a check Codex already ran.
 - It cannot mark anything `human-confirmed`. A person does that with the CLI and `--human <name>`.
+- Each MCP connection is recorded as its own session (`created_by.session`, an `mcp-…` id) unless `ALETHIC_SESSION` is set in the server's environment, so two Codex sessions working at once are told apart.
 - It writes only through the same code as the CLI, so records with secrets, unsafe paths, or schema errors are refused with the same messages.

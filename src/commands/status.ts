@@ -1,4 +1,5 @@
 import { now } from "../core/clock.js";
+import { describeWriter } from "../core/identity.js";
 import { RECORD_KINDS, type RecordKind } from "../core/ids.js";
 import { asObject, asString } from "../core/json.js";
 import type { LoadedRecord } from "../core/store.js";
@@ -16,6 +17,7 @@ export interface TaskSummary {
   status: string;
   summary: string;
   owner: string | null;
+  ownerSession: string | null;
   leaseExpiresAt: string | null;
   leaseExpired: boolean;
   nextAction: string | null;
@@ -75,8 +77,12 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
   for (const task of activeTasks) {
     lines.push(`  ${task.id}: ${task.summary}`);
     if (task.owner) {
+      const owner = describeWriter({
+        agent: task.owner,
+        ...(task.ownerSession ? { session: task.ownerSession } : {}),
+      });
       lines.push(
-        `    owner ${task.owner}, lease until ${task.leaseExpiresAt ?? "?"}${task.leaseExpired ? " (expired)" : ""}`,
+        `    owner ${owner}, lease until ${task.leaseExpiresAt ?? "?"}${task.leaseExpired ? " (expired)" : ""}`,
       );
     }
     if (task.nextAction) lines.push(`    next: ${task.nextAction}`);
@@ -119,6 +125,7 @@ function summarizeTask(
     status: asString(task.data.status) ?? "unknown",
     summary: asString(task.data.summary) ?? "",
     owner: asString(owner?.agent) ?? null,
+    ownerSession: asString(owner?.session) ?? null,
     leaseExpiresAt: lease,
     leaseExpired: lease !== null && Date.parse(lease) <= at.getTime(),
     nextAction: asString(task.data.next_action) ?? null,

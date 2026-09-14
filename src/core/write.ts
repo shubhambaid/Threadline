@@ -5,7 +5,7 @@ import { compileSecretPatterns, type SecretPattern, scanForSecrets } from "../va
 import { type Anchor, type AnchorInput, captureAnchor } from "./anchor.js";
 import { now as clockNow, toTimestamp } from "./clock.js";
 import { UsageError } from "./errors.js";
-import { resolveAgent } from "./identity.js";
+import { resolveIdentity } from "./identity.js";
 import type { RecordKind } from "./ids.js";
 import { asArray, asObject, isPlainObject } from "./json.js";
 import { loadManifest, type Manifest } from "./manifest.js";
@@ -17,13 +17,18 @@ import {
   scopeMatcher,
 } from "./paths.js";
 import { requireRecord } from "./records.js";
-import { type LoadedRecord, writeRecord } from "./store.js";
+import { type LoadedRecord, type WriteOptions, writeRecord } from "./store.js";
 
 /** Shared state for commands that write records. */
 export interface WriteContext {
   root: string;
   manifest: Manifest;
+  /** The agent tool writing, e.g. codex. */
   agent: string;
+  /** The session of that tool (ALETHIC_SESSION), when known. */
+  session?: string;
+  /** The model behind the session (ALETHIC_MODEL), only when stated. */
+  model?: string;
   now: Date;
   timestamp: string;
   patterns: SecretPattern[];
@@ -34,7 +39,7 @@ export async function openWriteContext(
   agentFlag: string | undefined,
   env: NodeJS.ProcessEnv,
 ): Promise<WriteContext> {
-  const agent = resolveAgent(agentFlag, env);
+  const identity = resolveIdentity(agentFlag, env);
   const { manifest, findings } = await loadManifest(root);
   if (!manifest) {
     const problems = findings.map((f) => `${f.path ?? f.file}: ${f.message}`).join("; ");
@@ -47,7 +52,14 @@ export async function openWriteContext(
     );
   }
   const at = clockNow(env);
-  return { root, manifest, agent, now: at, timestamp: toTimestamp(at), patterns };
+  return {
+    root,
+    manifest,
+    ...identity,
+    now: at,
+    timestamp: toTimestamp(at),
+    patterns,
+  };
 }
 
 const KEEP_EMPTY = new Set(["fingerprints"]);
@@ -233,19 +245,21 @@ export function addHumanConfirmation(
   };
 }
 
+/** `created_by`: the agent, and its session and model when known. */
 export function createdBy(ctx: WriteContext, human: string | undefined): Record<string, unknown> {
-  return compact({ agent: ctx.agent, human });
+  return compact({ agent: ctx.agent, session: ctx.session, model: ctx.model, human });
 }
 
 /**
  * Validates and writes a record. Nothing is written if it fails the schema or contains
- * anything that looks like a secret. Secret values are never echoed.
+ * anything that looks like a secret. Secret values are never echoed. Pass `expected` (the text the
+ * change was based on) when replacing a record, so a competing write is refused, not overwritten.
  */
 export async function saveRecord(
   ctx: WriteContext,
   kind: RecordKind,
   record: Record<string, unknown>,
-  options: { overwrite?: boolean } = {},
+  options: WriteOptions = {},
 ): Promise<string> {
   const secrets = scanForSecrets(record, ctx.patterns);
   if (secrets.length > 0) {

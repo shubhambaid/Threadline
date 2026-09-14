@@ -1,4 +1,5 @@
 import type { Finding } from "../core/findings.js";
+import { describeWriter, distinctWriters, type Writer } from "../core/identity.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import type { Manifest } from "../core/manifest.js";
 import { expandScope, isGlob, scopeMatcher } from "../core/paths.js";
@@ -153,16 +154,16 @@ export async function findOverlappingClaims(
     for (let j = i + 1; j < claimed.length; j++) {
       const first = claimed[i] as LoadedRecord;
       const second = claimed[j] as LoadedRecord;
-      const ownerA = asString(asObject(first.data.owner)?.agent);
-      const ownerB = asString(asObject(second.data.owner)?.agent);
-      if (!ownerA || !ownerB || ownerA === ownerB) continue;
+      const ownerA = writerOf(first.data.owner);
+      const ownerB = writerOf(second.data.owner);
+      if (!ownerA.agent || !ownerB.agent || !distinctWriters(ownerA, ownerB)) continue;
       if (!(await overlaps(scopeOf(first), scopeOf(second)))) continue;
       findings.push({
         severity: "warning",
         code: "overlapping-claim",
         file: second.file,
         path: "scope.paths",
-        message: `${idOf(first)} (${ownerA}) and ${idOf(second)} (${ownerB}) are both active over overlapping paths`,
+        message: `${idOf(first)} (${describeWriter(ownerA)}) and ${idOf(second)} (${describeWriter(ownerB)}) are both active over overlapping paths`,
         hint: `Coordinate before editing the same files: pause one with \`alethic task update ${idOf(second)} --status paused\`, or narrow its paths.`,
       });
     }
@@ -192,6 +193,43 @@ export function findUnretiredSupersessions(records: readonly LoadedRecord[]): Fi
         hint: `Retire it: \`alethic decision update ${old} --status superseded\`.`,
       });
     }
+  }
+  return findings;
+}
+
+function writerOf(value: unknown): Writer {
+  const data = asObject(value);
+  return { agent: asString(data?.agent), session: asString(data?.session) };
+}
+
+/**
+ * Checkpoints written by a different writer (another agent, or another session of the same agent)
+ * than the task's current owner, while that owner's lease was in force: two sessions worked the
+ * same task, typically on branches that were merged since. Both attributions are kept.
+ */
+export function findCompetingClaims(records: readonly LoadedRecord[]): Finding[] {
+  const tasks = new Map(records.filter((r) => r.kind === "task").map((r) => [idOf(r), r]));
+  const findings: Finding[] = [];
+  for (const checkpoint of records.filter((r) => r.kind === "checkpoint").sort(byCreation)) {
+    const task = tasks.get(asString(checkpoint.data.task) ?? "");
+    const status = asString(task?.data.status);
+    if (!task || status === "done" || status === "abandoned") continue;
+    const owner = asObject(task.data.owner);
+    const claimedAt = asString(owner?.claimed_at);
+    const until = asString(owner?.lease_expires_at);
+    const createdAt = asString(checkpoint.data.created_at);
+    if (!claimedAt || !until || !createdAt || createdAt < claimedAt || createdAt >= until) continue;
+    const holder = writerOf(owner);
+    const author = writerOf(checkpoint.data.created_by);
+    if (!holder.agent || !author.agent || !distinctWriters(holder, author)) continue;
+    findings.push({
+      severity: "warning",
+      code: "competing-claim",
+      file: checkpoint.file,
+      path: "created_by",
+      message: `${idOf(checkpoint)} was written by ${describeWriter(author)} at ${createdAt}, while ${describeWriter(holder)} held ${idOf(task)} (claimed ${claimedAt}, lease until ${until})`,
+      hint: `Decide which session continues: review it with \`alethic checkpoint show ${idOf(checkpoint)}\`, then have that session run \`alethic task claim ${idOf(task)} --force\`.`,
+    });
   }
   return findings;
 }

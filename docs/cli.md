@@ -329,7 +329,8 @@ Runs everything `validate` checks, plus coordination checks that only `doctor` r
 
 | Code | Severity | Meaning |
 |---|---|---|
-| `overlapping-claim` | warning | Two active tasks with unexpired leases, held by different agents, over overlapping paths. |
+| `overlapping-claim` | warning | Two active tasks with unexpired leases, held by different writers (different agents, or two recorded sessions of one agent), over overlapping paths. |
+| `competing-claim` | warning | A checkpoint written by a different writer while the task's current owner held its lease, typically after merging branches that both worked the task. Names both writers and sessions. |
 | `orphaned-checkpoint` | warning | A checkpoint written after its task was closed, typically from merging branches. Its next action may be unfinished work. |
 | `superseded-still-accepted` | warning | A decision named in an accepted decision's `supersedes` that is still `accepted` or `proposed`. |
 
@@ -350,6 +351,8 @@ Shows the branch, HEAD, and dirty state (changes under `.alethic/` don't count a
 | Variable | Meaning |
 |---|---|
 | `ALETHIC_AGENT` | Agent identity for commands that write records, such as `codex`, `claude-code`, or `gemini`. `--agent` takes precedence. |
+| `ALETHIC_SESSION` | The session of that agent, recorded in `created_by.session` and `owner.session`, so two runs of the same tool are different writers. `alethic session new` prints a fresh id. `alethic mcp` generates one per connection when unset. |
+| `ALETHIC_MODEL` | The model behind the session, recorded in `created_by.model`. Only set it when you know it; nothing guesses it. |
 | `ALETHIC_NOW` | Fixed current time (for example `2026-09-13T21:00:00Z`), for reproducible tests and demos. |
 | `ALETHIC_DEBUG` | Print stack traces for unexpected failures. |
 | `CI` | When `true` (or `1`) and the tree is clean, receipts are labeled `ci-reported`. |
