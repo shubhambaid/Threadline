@@ -10,7 +10,9 @@ import {
   allocate,
   type BriefingItem,
   type BriefingSection,
+  contentUsage,
   estimateTokens,
+  type ItemMeta,
   type Level,
 } from "./budget.js";
 import type { GitState } from "./collect.js";
@@ -47,6 +49,10 @@ const SECTION_PRIORITY = {
 
 /** Records whose warnings must survive small budgets: listed first in their section. */
 const ATTENTION: ReadonlySet<DerivedStatus> = new Set([...STALE_STATUSES, "uncertain"]);
+
+/** The documented overflow policy (spec §14), repeated in the inspectable result. */
+export const BUDGET_POLICY =
+  "Goal, repository state, integrity warnings, and the next safe action are always shown in full, even over budget. Other items shrink to one-line summaries, then collapse into 'N more' lines that cite at most five records each; every item stays listed here and readable with `alethic show <id>`.";
 
 export interface CheckpointRelation {
   kind: "head" | "ahead" | "other-line" | "unavailable";
@@ -91,12 +97,35 @@ export interface BriefingInput {
   integrity?: IntegrityNotes;
 }
 
+/** Where the approximate tokens went, so overflow is attributable (spec §14). */
+export interface BudgetReport {
+  budget: number;
+  /** Header and footer, reserved for the largest target. */
+  frame: number;
+  /** Section headings and required items, which are never shortened. */
+  required: number;
+  /** Optional items shown as summaries or in full. */
+  optional: number;
+  /** Collapsed "N more" lines and "None recorded." placeholders. */
+  pointers: number;
+  tokens: number;
+  overBudget: boolean;
+  policy: string;
+}
+
+export interface BriefingItemResult extends ItemMeta {
+  key: string;
+  level: Level;
+  text: string;
+}
+
 export interface Briefing {
   taskId: string;
   text: string;
   tokens: number;
   overBudget: boolean;
-  sections: { key: string; title: string; items: { key: string; level: Level; text: string }[] }[];
+  report: BudgetReport;
+  sections: { key: string; title: string; items: BriefingItemResult[] }[];
 }
 
 type Data = Record<string, unknown>;
@@ -166,8 +195,18 @@ function trustMarkers(data: Data, brief: boolean): string[] {
   }
 }
 
-function fixed(key: string, text: string): BriefingItem {
-  return { key, full: text, short: text, pointer: "", priority: 0 };
+function fixed(key: string, text: string, meta?: ItemMeta): BriefingItem {
+  return { key, full: text, short: text, pointer: "", priority: 0, ...(meta ? { meta } : {}) };
+}
+
+function candidateMeta(candidate: ScoredCandidate): ItemMeta {
+  return {
+    record: candidate.id,
+    reasons: candidate.reasons,
+    score: candidate.score,
+    freshness: candidate.staleness.status,
+    ...(candidate.receipt ? { applicability: candidate.receipt.applicability } : {}),
+  };
 }
 
 /** Records needing attention first, so their warnings survive small budgets; rank otherwise. */
@@ -196,18 +235,27 @@ export function buildBriefing(input: BriefingInput): Briefing {
   );
   const allocation = allocate(sections, input.budget - reserve);
   const text = frame(input.target, input.budget, taskId, allocation.content);
+  const tokens = estimateTokens(text);
   return {
     taskId,
     text,
-    tokens: estimateTokens(text),
+    tokens,
     overBudget: allocation.overBudget,
+    report: {
+      budget: input.budget,
+      frame: reserve,
+      ...contentUsage(sections, allocation.levels),
+      tokens,
+      overBudget: allocation.overBudget,
+      policy: BUDGET_POLICY,
+    },
     sections: sections.map((section) => ({
       key: section.key,
       title: section.title,
       items: section.items.map((item) => {
         const level = allocation.levels.get(item.key) ?? "pointer";
         const text = level === "full" ? item.full : level === "short" ? item.short : item.pointer;
-        return { key: item.key, level, text };
+        return { key: item.key, level, text, ...item.meta };
       }),
     })),
   };
@@ -222,7 +270,7 @@ function frame(target: Target, budget: number, taskId: string, content: string):
     content,
     "",
     "---",
-    `${TARGET_HINTS[target]} Before stopping, run \`alethic checkpoint create\`. Before closing the task, run \`alethic validate\`. Never put secrets, customer data, or chat transcripts in records.`,
+    `${TARGET_HINTS[target]} Read any cited record, including ones collapsed into "N more", with \`alethic show <id>\`. Before stopping, run \`alethic checkpoint create\`. Before closing the task, run \`alethic validate\`. Never put secrets, customer data, or chat transcripts in records.`,
     "",
   ].join("\n");
 }
@@ -247,10 +295,12 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
       fixed(
         "goal:intent",
         `${sentence(asString(task.intent) ?? asString(task.summary) ?? taskId)} [${taskId}]${markers(task)}`,
+        { record: taskId },
       ),
       fixed(
         "goal:status",
         `Status: ${asString(task.status) ?? "unknown"}${agent ? `; owner ${agent}, lease ${expired ? "expired at" : "until"} ${lease}` : ""}. [${taskId}]`,
+        { record: taskId },
       ),
     ],
   };
@@ -275,6 +325,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
       fixed(
         "state:checkpoint",
         `Latest checkpoint was written by ${author} at ${asString(latest.data.created_at) ?? "?"} on ${where}; ${relationText(input.latestRelation)}. [${latestId}]`,
+        { record: latestId },
       ),
     );
   } else {
@@ -313,6 +364,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
       short: text,
       pointer: `[${taskId}]`,
       priority: 0,
+      meta: { record: taskId },
     });
   }
   const currentChanges = new Set(git.changedPaths);
@@ -338,6 +390,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
         short: text,
         pointer: `[${latestId}]`,
         priority: 0,
+        meta: { record: latestId },
       });
     }
   }
@@ -381,6 +434,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
         short: `${truncate(`${oneLine(approach)}: ${oneLine(why)}`, 140)}${tail}`,
         pointer: `[${cpId}]`,
         priority: 0,
+        meta: { record: cpId },
       });
     }
   }
@@ -407,6 +461,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
                 short: text,
                 pointer: `[${latestId}]`,
                 priority: 0,
+                meta: { record: latestId },
               };
             }),
             SECTION_PRIORITY.questions,
@@ -422,7 +477,7 @@ function buildSections(input: BriefingInput, taskId: string): BriefingSection[] 
     key: "next",
     title: "Next safe action",
     required: true,
-    items: [fixed("next", `${sentence(nextText)} [${nextCite}]`)],
+    items: [fixed("next", `${sentence(nextText)} [${nextCite}]`, { record: nextCite })],
   };
 
   return [
@@ -547,7 +602,14 @@ function recordItem(candidate: ScoredCandidate, disputed: ReadonlySet<string>): 
   } else {
     full = `${prefix}${sentence(asString(data.body) ?? "")}${tail}`;
   }
-  return { key: `record:${id}`, full, short: summary, pointer: `[${id}]`, priority: 0 };
+  return {
+    key: `record:${id}`,
+    full,
+    short: summary,
+    pointer: `[${id}]`,
+    priority: 0,
+    meta: candidateMeta(candidate),
+  };
 }
 
 function receiptItem(candidate: ScoredCandidate): BriefingItem {
@@ -577,5 +639,6 @@ function receiptItem(candidate: ScoredCandidate): BriefingItem {
     short: `${command} ${outcome} at ${head} (${applicability.short}).${tail}`,
     pointer: `(receipt ${id})`,
     priority: 0,
+    meta: candidateMeta(candidate),
   };
 }

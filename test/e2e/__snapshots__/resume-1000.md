@@ -16,8 +16,7 @@
 - Tell users that other devices were signed out. [dec-web-login-copy] ⚠ unverified
 - Store token_version on users and reject tokens with an older version. [dec-auth-session-invalidation] ℹ confirmed by maintainer, not authenticated
 - Use the documented approach for admin override. [dec-auth-admin-override] ⚠ unverified
-- Use the documented approach for email notice. [dec-auth-email-notice] ⚠ unverified
-- 12 more: [dec-auth-device-list], [dec-auth-csrf-tokens], [dec-auth-cookie-flags], [dec-auth-migration-order], [dec-auth-error-messages], and 7 others
+- 13 more: [dec-auth-email-notice], [dec-auth-device-list], [dec-auth-csrf-tokens], [dec-auth-cookie-flags], [dec-auth-migration-order], and 8 others
 
 ## Files changed or likely relevant
 - apps/api/auth/**: task scope [task-invalidate-sessions-after-password-reset]
@@ -42,4 +41,4 @@
 - Invalidate the cached refresh entry when token_version changes, then rerun pnpm test auth. [cp-invalidate-sessions-after-password-reset-20260913t183300z]
 
 ---
-Project instructions for Claude Code are in CLAUDE.md. Before stopping, run `alethic checkpoint create`. Before closing the task, run `alethic validate`. Never put secrets, customer data, or chat transcripts in records.
+Project instructions for Claude Code are in CLAUDE.md. Read any cited record, including ones collapsed into "N more", with `alethic show <id>`. Before stopping, run `alethic checkpoint create`. Before closing the task, run `alethic validate`. Never put secrets, customer data, or chat transcripts in records.

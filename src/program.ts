@@ -15,6 +15,7 @@ import { mcpCommand } from "./commands/mcp.js";
 import { receiptAddCommand, receiptRunCommand } from "./commands/receipt.js";
 import { renderCommand } from "./commands/render.js";
 import { resumeCommand } from "./commands/resume.js";
+import { showCommand } from "./commands/show.js";
 import { statusCommand } from "./commands/status.js";
 import {
   taskClaimCommand,
@@ -325,6 +326,17 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--agent <name>", "agent reading the briefing, to find its active task")
     .action(async (options, command: Command) => {
       exitCode = await resumeCommand(ioFor(command), options);
+    });
+
+  program
+    .command("show")
+    .description(
+      "Show one record with its derived freshness and trust, such as an item a briefing collapsed",
+    )
+    .argument("<id>", "record id")
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await showCommand(ioFor(command), id, options);
     });
 
   withWriteOptions(

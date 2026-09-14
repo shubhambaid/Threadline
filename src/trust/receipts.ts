@@ -3,10 +3,10 @@ import { asArray, asObject, asString } from "../core/json.js";
 import type { Manifest } from "../core/manifest.js";
 import { ALETHIC_DIR, checkRepoPath, scopeMatcher } from "../core/paths.js";
 import {
-  codeChangedBetween,
+  createGitLookups,
+  type GitLookups,
   hashWorkingTreeFiles,
   listWorkspaceFiles,
-  resolveCommit,
 } from "../git/git.js";
 
 export type Coverage = "workspace" | "scope" | "partial";
@@ -96,6 +96,7 @@ export interface ReceiptContext {
   head?: string;
   /** Whether the current tree has uncommitted changes outside `.alethic/`. */
   dirty: boolean;
+  lookups: GitLookups;
   digests: Map<string, Promise<WorkspaceDigest>>;
 }
 
@@ -103,8 +104,9 @@ export function createReceiptContext(
   root: string,
   manifest: Manifest,
   git: { head?: string; dirty: boolean },
+  lookups: GitLookups = createGitLookups(root),
 ): ReceiptContext {
-  return { root, manifest, head: git.head, dirty: git.dirty, digests: new Map() };
+  return { root, manifest, head: git.head, dirty: git.dirty, lookups, digests: new Map() };
 }
 
 export async function assessReceipt(
@@ -113,7 +115,7 @@ export async function assessReceipt(
 ): Promise<ReceiptAssessment> {
   const git = asObject(data.git);
   const head = asString(git?.head);
-  const resolved = head ? await resolveCommit(ctx.root, head) : undefined;
+  const resolved = head ? await ctx.lookups.resolveCommit(head) : undefined;
   const atHead = resolved !== undefined && resolved === ctx.head;
   const ranDirty = git?.dirty === true;
   const state = asObject(data.state);
@@ -149,7 +151,7 @@ export async function assessReceipt(
   if (!resolved) return { applicability: "unknown", ...base };
   if (ranDirty || ctx.dirty) return { applicability: "uncommitted", ...base };
   if (atHead) return { applicability: "at-head", ...base, codeChanged: false };
-  const changed = ctx.head ? await codeChangedBetween(ctx.root, resolved, ctx.head) : undefined;
+  const changed = ctx.head ? await ctx.lookups.codeChangedBetween(resolved, ctx.head) : undefined;
   if (changed === undefined) return { applicability: "unknown", ...base };
   return {
     applicability: changed ? "code-changed" : "code-unchanged",

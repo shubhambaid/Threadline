@@ -176,7 +176,9 @@ Options:
 - `--task <id>`: defaults to the active task owned by `--agent` or `ALETHIC_AGENT`, else the single open task on the current branch, else the single open task.
 - `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers, which cite at most five records and count the rest. Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
 - `--target`: `codex`, `claude-code`, `gemini`, or `generic`. Only the header and footer change; the content is identical for every target.
-- `--format json`: `{ task, target, budget, tokens, overBudget, sections[{ key, title, items[{ key, level, text }] }] }`.
+- `--format json`: `{ task, target, budget, tokens, overBudget, report, sections[{ key, title, items[{ key, level, text, record?, reasons?, score?, freshness?, applicability? }] }], skipped[{ id, reason }] }`. This is the compiler's inspectable result: every item is listed with the level it got (`full`, `short`, or `pointer` when it was collapsed into an "N more" line), and items from records say which record, how it was found (`reasons`), its score, and its derived freshness. `skipped` lists retired records that matched but were left out. `report` attributes the approximate tokens: `frame`, `required` (headings and sections that are never shortened), `optional`, and `pointers`, with the overflow `policy`.
+- Overflow: goal, repository state, integrity warnings, and next safe action are never shortened, even when they alone exceed the budget. The command still prints the briefing and warns on stderr, saying how much the mandatory content and the pointer lines take.
+- Every collapsed record can be read with `alethic show <id>`, and the briefing's footer says so.
 
 How records are chosen (deterministic, no embeddings):
 
@@ -188,6 +190,30 @@ How records are chosen (deterministic, no embeddings):
 They are ranked by how they were found (explicit links first), trust level (`ci-reported` counts the same as `agent-reported`), accepted status, whether their anchor is on this line of history, and, for receipts, whether the code is unchanged since they ran; then recency and id. Staleness never lowers a record's rank: a record that may be stale is shown with its warning rather than hidden. Within their section, records that may be stale are listed first, so their warnings survive small budgets.
 
 Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose direct evidence changed by any amount are marked `⚠ may be stale: <reason>`, with `(small change)` when the change is within `staleness.changed_lines_threshold`. Records whose applicability cannot be established are marked `⚠ applicability unknown: <reason>`, and records whose cited files are unchanged while nearby files matched by a scope glob changed get `ℹ nearby files changed, cited files did not: <reason>` (spec §9).
+
+## `alethic show`
+
+Prints one record with what is derived about it. Use it to read an item a briefing collapsed into an "N more" line.
+
+```console
+$ alethic show dec-auth-session-store
+# dec-auth-session-store (decision)
+
+File:      .alethic/decisions/dec-auth-session-store.yaml
+Revision:  5b2f0c1e9d…
+Freshness: needs_reverification: apps/api/auth/session.ts changed 2 lines (+1/-1) since it was anchored
+Trust:     human-confirmed by Priya (attributed, recorded by codex; not authenticated)
+
+---
+id: dec-auth-session-store
+…
+```
+
+- `Revision` is the Git blob id of the record file.
+- `Freshness` is the derived status and its reasons (spec §9), `Trust` the confidence and, for human confirmations, whether the confirmation is bound to this text (§8.1). Receipts add `Applies`: whether the result applies to the current code, and whether it was observed or reported (§6.5).
+- Record-level findings, such as an outdated confirmation, are listed before the record.
+- `--json` prints `{ id, kind, file, revision, record, derived: { staleness, confirmation, receipt? }, findings }`.
+- Records that failed validation are refused (exit 2), so a secret in a hand-edited record is never printed.
 
 ## `alethic render`
 

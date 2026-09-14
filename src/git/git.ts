@@ -215,6 +215,38 @@ export async function listTrackedFiles(root: string): Promise<string[]> {
     .sort();
 }
 
+export interface GitLookups {
+  resolveCommit(sha: string): Promise<string | undefined>;
+  isAncestor(ancestor: string, descendant: string): Promise<boolean>;
+  codeChangedBetween(from: string, to: string): Promise<boolean | undefined>;
+  commitsSince(from: string, to: string): Promise<number | undefined>;
+}
+
+/**
+ * Commit queries memoized for one command run. A large ledger names the same few commits many
+ * times, and each uncached query is a git process, which dominated `resume` on large ledgers.
+ */
+export function createGitLookups(root: string): GitLookups {
+  const memo = <T>(query: (...args: string[]) => Promise<T>) => {
+    const cache = new Map<string, Promise<T>>();
+    return (...args: string[]): Promise<T> => {
+      const key = args.join("\0");
+      let hit = cache.get(key);
+      if (!hit) {
+        hit = query(...args);
+        cache.set(key, hit);
+      }
+      return hit;
+    };
+  };
+  return {
+    resolveCommit: memo((sha) => resolveCommit(root, sha ?? "")),
+    isAncestor: memo((a, b) => isAncestor(root, a ?? "", b ?? "")),
+    codeChangedBetween: memo((a, b) => codeChangedBetween(root, a ?? "", b ?? "")),
+    commitsSince: memo((a, b) => commitsSince(root, a ?? "", b ?? "")),
+  };
+}
+
 /** Tracked files plus untracked files that are not ignored, repository-relative, sorted. */
 export async function listWorkspaceFiles(root: string): Promise<string[]> {
   const out = await gitOk(root, ["ls-files", "-z", "--cached", "--others", "--exclude-standard"]);

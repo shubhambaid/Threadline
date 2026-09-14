@@ -1,6 +1,19 @@
 /** How much of an item a briefing shows. */
 export type Level = "full" | "short" | "pointer";
 
+/** Why an item is in the briefing, for inspection (`resume --format json`). */
+export interface ItemMeta {
+  /** The record the item comes from. */
+  record?: string;
+  /** How the record was found (explicit links, path overlap, …). */
+  reasons?: string[];
+  score?: number;
+  /** Derived freshness (spec §9). */
+  freshness?: string;
+  /** For receipts: whether the result applies to the current code (spec §6.5). */
+  applicability?: string;
+}
+
 export interface BriefingItem {
   /** Unique across all sections. */
   key: string;
@@ -10,6 +23,7 @@ export interface BriefingItem {
   pointer: string;
   /** Higher is shown first and upgraded first when space allows. */
   priority: number;
+  meta?: ItemMeta;
 }
 
 export interface BriefingSection {
@@ -42,39 +56,91 @@ export function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
+type LineKind = "heading" | "required" | "item" | "pointer" | "empty";
+
+interface RenderedSection {
+  lines: { kind: LineKind; text: string }[];
+}
+
+function renderSection(
+  section: BriefingSection,
+  levels: ReadonlyMap<string, Level>,
+): RenderedSection {
+  const lines: RenderedSection["lines"] = [{ kind: "heading", text: `## ${section.title}` }];
+  const pointers: string[] = [];
+  let hidden = 0;
+  for (const item of section.items) {
+    const level = levels.get(item.key) ?? "pointer";
+    if (level === "pointer") {
+      hidden++;
+      if (!pointers.includes(item.pointer)) pointers.push(item.pointer);
+    } else {
+      lines.push({
+        kind: section.required ? "required" : "item",
+        text: `- ${level === "full" ? item.full : item.short}`,
+      });
+    }
+  }
+  if (hidden > 0) {
+    const noun = section.pointerNoun
+      ? ` ${hidden === 1 ? section.pointerNoun.one : section.pointerNoun.other}`
+      : "";
+    const shown = pointers.slice(0, MAX_POINTERS);
+    const rest = pointers.length - shown.length;
+    lines.push({
+      kind: "pointer",
+      text: `- ${hidden} more${noun}: ${shown.join(", ")}${rest > 0 ? `, and ${rest} ${rest === 1 ? "other" : "others"}` : ""}`,
+    });
+  }
+  if (section.items.length === 0) lines.push({ kind: "empty", text: "None recorded." });
+  return { lines };
+}
+
+function visible(sections: readonly BriefingSection[]): BriefingSection[] {
+  return sections.filter((section) => !(section.hideWhenEmpty && section.items.length === 0));
+}
+
 export function renderContent(
   sections: readonly BriefingSection[],
   levels: ReadonlyMap<string, Level>,
 ): string {
-  return sections
-    .filter((section) => !(section.hideWhenEmpty && section.items.length === 0))
-    .map((section) => {
-      const lines = [`## ${section.title}`];
-      const pointers: string[] = [];
-      let hidden = 0;
-      for (const item of section.items) {
-        const level = levels.get(item.key) ?? "pointer";
-        if (level === "pointer") {
-          hidden++;
-          if (!pointers.includes(item.pointer)) pointers.push(item.pointer);
-        } else {
-          lines.push(`- ${level === "full" ? item.full : item.short}`);
-        }
-      }
-      if (hidden > 0) {
-        const noun = section.pointerNoun
-          ? ` ${hidden === 1 ? section.pointerNoun.one : section.pointerNoun.other}`
-          : "";
-        const shown = pointers.slice(0, MAX_POINTERS);
-        const rest = pointers.length - shown.length;
-        lines.push(
-          `- ${hidden} more${noun}: ${shown.join(", ")}${rest > 0 ? `, and ${rest} ${rest === 1 ? "other" : "others"}` : ""}`,
-        );
-      }
-      if (section.items.length === 0) lines.push("None recorded.");
-      return lines.join("\n");
-    })
+  return visible(sections)
+    .map((section) =>
+      renderSection(section, levels)
+        .lines.map((line) => line.text)
+        .join("\n"),
+    )
     .join("\n\n");
+}
+
+/** Where the content's approximate tokens go (spec §14). The parts add up to about the whole. */
+export interface ContentUsage {
+  /** Headings and the items of required sections: never shortened. */
+  required: number;
+  /** Optional items shown as summaries or in full. */
+  optional: number;
+  /** Collapsed "N more" lines and "None recorded." placeholders. */
+  pointers: number;
+}
+
+export function contentUsage(
+  sections: readonly BriefingSection[],
+  levels: ReadonlyMap<string, Level>,
+): ContentUsage {
+  const chars = { required: 0, optional: 0, pointers: 0 };
+  for (const section of visible(sections)) {
+    for (const line of renderSection(section, levels).lines) {
+      const size = line.text.length + 1;
+      if (line.kind === "heading" || line.kind === "required") chars.required += size;
+      else if (line.kind === "item") chars.optional += size;
+      else chars.pointers += size;
+    }
+  }
+  return {
+    required: Math.ceil(chars.required / 4),
+    optional: Math.ceil(chars.optional / 4),
+    pointers: Math.ceil(chars.pointers / 4),
+  };
 }
 
 function byPriority(a: BriefingItem, b: BriefingItem): number {

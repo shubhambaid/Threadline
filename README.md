@@ -99,6 +99,7 @@ Every record carries a confidence label, an anchor to the code it describes, and
 | `receipt run`, `receipt add` | Run a check and record the code it saw, or record a check that already ran |
 | `checkpoint create / list / show` | Hand off unfinished work |
 | `resume` | Compile a cited, budgeted briefing for the next agent |
+| `show` | Read one record with its derived freshness and trust |
 | `verify`, `doctor` | Re-anchor checked claims; find stale records and conflicts |
 | `render` | Instruction-file blocks and pull request summaries |
 | `mcp` | Serve the same operations over MCP (stdio) |
@@ -118,6 +119,7 @@ Full reference: [docs/cli.md](docs/cli.md).
 - [Architecture](docs/architecture.md)
 - [Why not just AGENTS.md?](docs/why-not-agents-md.md)
 - [How Aletheic compares](docs/comparison.md)
+- [Briefing performance on large ledgers](docs/performance.md)
 - [Roadmap](ROADMAP.md) and [contributing](CONTRIBUTING.md)
 
 ## Status

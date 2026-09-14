@@ -18,6 +18,7 @@ import {
   changedPathsSince,
   codeChangedBetween,
   commitsSince,
+  createGitLookups,
   currentBranch,
   headCommit,
   isDirty,
@@ -58,6 +59,8 @@ export interface PreparedTask {
   latestRelation?: CheckpointRelation;
   scopePaths: string[];
   records: ScoredCandidate[];
+  /** Records that matched but were left out on purpose, with the reason. */
+  skipped: Collected["skipped"];
   /** Problems with the ledger that the next agent should know about before trusting it. */
   integrity: IntegrityNotes;
 }
@@ -76,9 +79,11 @@ export async function prepareTask(
     ? requireUsable(ledger, options.task, "task", "--task")
     : inferTask(index, options.agent ?? io.env.ALETHIC_AGENT, git.branch);
 
-  const collected = await collect(root, index, task, git, manifest);
+  // One set of memoized Git lookups for the run: large ledgers repeat the same commits.
+  const lookups = createGitLookups(root);
+  const collected = await collect(root, index, task, git, manifest, lookups);
   const staleness = await createStalenessContext(root, manifest);
-  const receipts = createReceiptContext(root, manifest, git);
+  const receipts = createReceiptContext(root, manifest, git, lookups);
   const assessed: AssessedCandidate[] = [];
   for (const candidate of [...collected.decisions, ...collected.knowledge, ...collected.receipts]) {
     const result = await assessStaleness(staleness, candidate.record.data);
@@ -107,6 +112,7 @@ export async function prepareTask(
       : undefined,
     scopePaths: collected.scopePaths,
     records: rankCandidates(assessed),
+    skipped: collected.skipped,
     integrity: await integrityNotes(root, ledger, manifest, task, collected),
   };
 }
@@ -143,15 +149,18 @@ export async function resumeCommand(io: Io, options: ResumeOptions): Promise<num
       budget,
       tokens: briefing.tokens,
       overBudget: briefing.overBudget,
+      report: briefing.report,
       sections: briefing.sections,
+      skipped: prepared.skipped,
     };
     io.stdout(`${JSON.stringify(output, null, 2)}\n`);
   } else {
     io.stdout(briefing.text);
   }
   if (briefing.overBudget) {
+    const { frame, required, pointers } = briefing.report;
     io.stderr(
-      `warning: the required sections alone exceed the budget of about ${budget} tokens.\n`,
+      `warning: the briefing is about ${briefing.tokens} tokens, over the budget of about ${budget}. The frame and the sections that are never shortened (goal, repository state, integrity warnings, next safe action) take about ${frame + required}; everything else was reduced to pointer lines, which take about ${pointers}. Read collapsed records with \`alethic show <id>\`.\n`,
     );
   }
   return 0;

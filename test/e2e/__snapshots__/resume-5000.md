@@ -54,4 +54,4 @@
 - Invalidate the cached refresh entry when token_version changes, then rerun pnpm test auth. [cp-invalidate-sessions-after-password-reset-20260913t183300z]
 
 ---
-Project instructions for Claude Code are in CLAUDE.md. Before stopping, run `alethic checkpoint create`. Before closing the task, run `alethic validate`. Never put secrets, customer data, or chat transcripts in records.
+Project instructions for Claude Code are in CLAUDE.md. Read any cited record, including ones collapsed into "N more", with `alethic show <id>`. Before stopping, run `alethic checkpoint create`. Before closing the task, run `alethic validate`. Never put secrets, customer data, or chat transcripts in records.
