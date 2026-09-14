@@ -35,7 +35,7 @@ class RpcError extends Error {
 }
 
 const INSTRUCTIONS =
-  "Aletheic is shared task memory stored in .alethic/ and committed with the code. Call `resume` before non-trivial work. After running a check, call `receipt_record`. Call `checkpoint_create` before stopping or handing off. Never store transcripts, secrets, or customer data.";
+  "Alethic is shared task memory stored in .alethic/ and committed with the code. Call `resume` before non-trivial work. After running a check, call `receipt_record`. Call `checkpoint_create` before stopping or handing off. Never store transcripts, secrets, or customer data.";
 
 const OPEN_TASK = new Set(["active", "paused", "blocked", "proposed"]);
 const RECORD_URI = /^alethic:\/\/records\/([a-z0-9][a-z0-9-]*)$/;
@@ -112,7 +112,7 @@ export function createMcpHandler(options: {
       {
         uri: "alethic://status",
         name: "status",
-        title: "Aletheic status",
+        title: "Alethic status",
         description: "Git state, active tasks, latest checkpoints, and validation summary.",
         mimeType: "application/json",
       },
@@ -171,7 +171,7 @@ export function createMcpHandler(options: {
           tools: { listChanged: false },
           resources: { subscribe: false, listChanged: false },
         },
-        serverInfo: { name: "alethic", title: "Aletheic", version: pkg.version },
+        serverInfo: { name: "alethic", title: "Alethic", version: pkg.version },
         instructions: INSTRUCTIONS,
       };
     },
@@ -192,7 +192,7 @@ export function createMcpHandler(options: {
         {
           uriTemplate: "alethic://records/{id}",
           name: "record",
-          title: "Aletheic record",
+          title: "Alethic record",
           description: "Any task, decision, knowledge, checkpoint, or receipt record by id.",
           mimeType: "application/yaml",
         },

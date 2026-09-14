@@ -1,4 +1,4 @@
-# Contributing to Aletheic
+# Contributing to Alethic
 
 Thanks for helping. This guide covers setup, the rules the project holds itself to, and how to make changes that get merged.
 
@@ -7,8 +7,8 @@ Thanks for helping. This guide covers setup, the rules the project holds itself 
 You need Node 22.12 or later and Git.
 
 ```sh
-git clone https://github.com/shubhambaid/Aletheic.git
-cd Aletheic
+git clone https://github.com/shubhambaid/alethic.git
+cd Alethic
 npm install
 npm test
 ```
@@ -52,7 +52,7 @@ Bug fixes should come with a test that fails without the fix.
 
 - Keep changes focused. A new command or record field is easier to review with its spec change, docs in `docs/cli.md`, and tests together.
 - Run `npm run typecheck && npm run lint && npm test` before pushing.
-- Describe what changed and why. `alethic render pr-summary` can help if you used Aletheic for the work.
+- Describe what changed and why. `alethic render pr-summary` can help if you used Alethic for the work.
 
 ## License
 

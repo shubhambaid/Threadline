@@ -4,7 +4,7 @@
 
 ```console
 $ alethic dashboard
-Aletheic dashboard: http://127.0.0.1:4700/
+Alethic dashboard: http://127.0.0.1:4700/
 Read-only, and reachable only from this machine. Press Ctrl+C to stop.
 ```
 
@@ -35,7 +35,7 @@ Every relationship says how it is known:
 |---|---|---|
 | Explicit | A field in a record states it. | A checkpoint's `task`, `links`, `supersedes`, cited receipts, `created_by`, `owner`, evidence files, and anchor commits |
 | Inferred | Derived, not recorded. | A decision whose paths overlap a task's scope; a **handoff**, when a different session worked on a task after another session's record |
-| Delivered | A recorded briefing delivery. | None: Aletheic does not record which briefing an agent received |
+| Delivered | A recorded briefing delivery. | None: Alethic does not record which briefing an agent received |
 
 A handoff edge shows the order of recorded work. It does not show that the later session read the earlier record, and no view presents a record as having been read, understood, or used by an agent. If briefing-delivery events are added later, they will be opt-in, versioned, and stored outside compiled briefings, and they will still say only that context was delivered.
 

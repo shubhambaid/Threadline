@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:alethic:v1:checkpoint",
-  "title": "Aletheic checkpoint",
+  "title": "Alethic checkpoint",
   "type": "object",
   "allOf": [{ "$ref": "urn:alethic:v1:common#/$defs/envelope" }],
   "required": ["task", "git", "next_safe_action"],

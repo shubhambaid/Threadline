@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:alethic:v1:decision",
-  "title": "Aletheic decision",
+  "title": "Alethic decision",
   "type": "object",
   "allOf": [{ "$ref": "urn:alethic:v1:common#/$defs/envelope" }],
   "required": ["topic", "chosen", "rationale"],

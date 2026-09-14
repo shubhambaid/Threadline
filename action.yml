@@ -2,8 +2,8 @@
 #
 # Use a full clone (actions/checkout with fetch-depth: 0) so evidence commits can be checked.
 # In a shallow clone, missing commits are reported as warnings, or as errors with strict: "true".
-name: Aletheic validate
-description: Validate Aletheic shared-memory records (.alethic/) for schema, provenance, privacy, and lease problems.
+name: Alethic validate
+description: Validate Alethic shared-memory records (.alethic/) for schema, provenance, privacy, and lease problems.
 branding:
   icon: check-circle
   color: blue
@@ -25,7 +25,7 @@ runs:
       with:
         node-version: 22
 
-    - name: Build Aletheic
+    - name: Build Alethic
       shell: bash
       working-directory: ${{ github.action_path }}
       run: npm ci --no-audit --no-fund && npm run build

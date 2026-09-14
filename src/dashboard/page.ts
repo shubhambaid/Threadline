@@ -381,12 +381,12 @@ export function renderPage(nonce: string): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Aletheic dashboard</title>
+<title>Alethic dashboard</title>
 <style nonce="${nonce}">${STYLES}</style>
 </head>
 <body>
 <div id="app" class="app"></div>
-<noscript>The Aletheic dashboard needs JavaScript. The same information is available from <code>alethic status</code>, <code>alethic doctor</code>, and <code>alethic dashboard --snapshot -</code>.</noscript>
+<noscript>The Alethic dashboard needs JavaScript. The same information is available from <code>alethic status</code>, <code>alethic doctor</code>, and <code>alethic dashboard --snapshot -</code>.</noscript>
 <script nonce="${nonce}">${CLIENT_SOURCE}</script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# Aletheic improvement plan
+# Alethic improvement plan
 
 ## Objective
 
@@ -111,7 +111,7 @@ Receipt applicability currently relies partly on commit comparisons. Matching HE
 
 - Editing code without changing HEAD invalidates an unsupported claim that a previous check applies to current code.
 - Changes during execution are visible.
-- Imported receipts cannot imply that Aletheic observed execution.
+- Imported receipts cannot imply that Alethic observed execution.
 - Output is redacted before storage, and sensitive environment values are not captured by default.
 - Tests cover clean, dirty, changed-during-run, and partially fingerprinted states.
 
@@ -185,7 +185,7 @@ The demo and cross-agent tests exercise scripted operations under different agen
 - Compare against Git plus repository instructions and a simple handoff Markdown file.
 - Include failed approaches, changed evidence, conflicting decisions, expired ownership, and incomplete checks.
 - Measure time and tokens to the next useful action, repeated investigation, repeated mistakes, stale-claim reliance, and maintenance effort.
-- Use Aletheic in its own development to expose routine capture friction.
+- Use Alethic in its own development to expose routine capture friction.
 - Add file/stdin input and improve capture ergonomics where observed friction justifies it.
 - Publish reproducible scenarios and limitations without storing private transcripts in the ledger.
 

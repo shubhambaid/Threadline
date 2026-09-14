@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:alethic:v1:manifest",
-  "title": "Aletheic manifest (.alethic/manifest.yaml)",
+  "title": "Alethic manifest (.alethic/manifest.yaml)",
   "type": "object",
   "required": ["format_version", "project"],
   "properties": {

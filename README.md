@@ -1,8 +1,8 @@
-# Aletheic
+# Alethic
 
 Verifiable context for coding agents.
 
-Aletheic keeps the state of unfinished work in the repository: tasks, decisions, knowledge, checkpoints, and check receipts, as small YAML files under `.alethic/`. When one agent stops, the next one (Codex, Claude Code, Gemini, or a person) picks up from what was committed, without the previous chat history.
+Alethic keeps the state of unfinished work in the repository: tasks, decisions, knowledge, checkpoints, and check receipts, as small YAML files under `.alethic/`. When one agent stops, the next one (Codex, Claude Code, Gemini, or a person) picks up from what was committed, without the previous chat history.
 
 <!-- Demo GIF goes here. Generate it with `vhs examples/demo/demo.tape` (writes docs/assets/demo.gif). -->
 
@@ -10,7 +10,7 @@ Aletheic keeps the state of unfinished work in the repository: tasks, decisions,
 
 When an agent session ends, most of what it learned ends with it: which approach failed and why, what was decided, which tests ran against which commit. The next agent rediscovers it, or repeats the failed approach.
 
-Aletheic records that as reviewable files committed with the code, and compiles them into a short, cited briefing for whoever continues.
+Alethic records that as reviewable files committed with the code, and compiles them into a short, cited briefing for whoever continues.
 
 - **Plain files in Git.** One record per file, so they show up in pull requests and merge like code. No service, account, database, or network access.
 - **Anchored to code.** Records fingerprint the files they describe. When that code changes, the record is flagged *may be stale* instead of being trusted silently. Fingerprints are content-based, so records survive squash merges, rebases, and shallow clones.
@@ -42,17 +42,17 @@ The script builds a tiny auth service in a temporary directory, then hands one t
 
 `alethic dashboard` serves a read-only page on this machine: one lane per agent session, the records each session wrote, the handoffs between them, and everything that needs attention. Here it shows the demo repository after an uncommitted edit to `src/sessions.js`: the decision the edit contradicts is flagged, its inspector compares the anchored and current content file by file, and the recorded checks no longer claim to apply.
 
-![Aletheic dashboard: session lanes with records and inferred handoffs, and an inspector showing a decision whose evidence changed](docs/assets/dashboard.png)
+![Alethic dashboard: session lanes with records and inferred handoffs, and an inspector showing a decision whose evidence changed](docs/assets/dashboard.png)
 
 Every relationship says whether a record states it or it was inferred, and nothing in the dashboard claims that an agent read a record. Details: [docs/dashboard.md](docs/dashboard.md).
 
 ## Quickstart
 
-Aletheic is not published to npm yet. Install it from source (Node 22.12 or later):
+Alethic is not published to npm yet. Install it from source (Node 22.12 or later):
 
 ```sh
-git clone https://github.com/shubhambaid/Aletheic.git
-cd Aletheic && npm install && npm run build && npm link   # puts `alethic` on PATH
+git clone https://github.com/shubhambaid/alethic.git
+cd Alethic && npm install && npm run build && npm link   # puts `alethic` on PATH
 ```
 
 In your repository:
@@ -60,7 +60,7 @@ In your repository:
 ```sh
 alethic init
 alethic render agents-md --write     # tell agents to start from `alethic resume`
-git add -A && git commit -m "Add Aletheic"
+git add -A && git commit -m "Add Alethic"
 ```
 
 An agent (or you) starts work and leaves a checkpoint before stopping:
@@ -128,7 +128,7 @@ Full reference: [docs/cli.md](docs/cli.md).
 - [CLI reference](docs/cli.md)
 - [Architecture](docs/architecture.md)
 - [Why not just AGENTS.md?](docs/why-not-agents-md.md)
-- [How Aletheic compares](docs/comparison.md)
+- [How Alethic compares](docs/comparison.md)
 - [Briefing performance on large ledgers](docs/performance.md)
 - [Evaluating handoffs in real agent sessions](docs/evaluation.md): the protocol, and what has not been verified yet
 - [Roadmap](ROADMAP.md) and [contributing](CONTRIBUTING.md)

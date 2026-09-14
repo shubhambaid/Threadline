@@ -89,10 +89,10 @@ export async function shortSha(root: string, sha: string): Promise<string> {
  */
 export async function isDirty(
   root: string,
-  options: { includeAletheic?: boolean } = {},
+  options: { includeAlethic?: boolean } = {},
 ): Promise<boolean> {
   const args = ["status", "--porcelain=v1", "--untracked-files=normal", "--", "."];
-  if (!options.includeAletheic) args.push(":(exclude).alethic");
+  if (!options.includeAlethic) args.push(":(exclude).alethic");
   return (await gitOk(root, args)).trim().length > 0;
 }
 

@@ -1,7 +1,7 @@
-# Aletheic Specification — format v1
+# Alethic Specification — format v1
 
 > Verifiable context for coding agents.
-> Git versions code. Aletheic versions the context needed to change it safely.
+> Git versions code. Alethic versions the context needed to change it safely.
 
 Status: draft for v0. This document is normative. The words MUST, MUST NOT, SHOULD, and MAY carry their usual RFC 2119 meaning. The JSON Schemas in [`schemas/`](../schemas) are the machine-readable form of the rules here. If this document and the schemas disagree, that is a bug, and the test suite is built to catch it (see [Appendix A](#appendix-a-machine-checked-examples)).
 
@@ -18,7 +18,7 @@ Coding agents such as Codex, Claude Code, and Gemini/Antigravity each work in is
 
 Today that context lives in chat history, which is private, huge, and vendor-specific, or in ad-hoc handoff Markdown, which is unstructured, unverifiable, and silently goes stale. Agents repeat investigations, contradict earlier decisions, and trust test results that no longer apply.
 
-Aletheic stores that context as small, typed, reviewable records inside the repository, versioned by Git alongside the code they describe.
+Alethic stores that context as small, typed, reviewable records inside the repository, versioned by Git alongside the code they describe.
 
 ## 2. Principles
 
@@ -26,7 +26,7 @@ Aletheic stores that context as small, typed, reviewable records inside the repo
 2. **Evidence over assertion.** Important records link to commits, files, checks, receipts, issues, PRs, or human confirmations. A claim with no evidence is labeled as such.
 3. **Portable by default.** The format is plain YAML plus JSON Schema. It depends on no model, IDE, CLI, or vendor.
 4. **Small context, not transcript dumps.** Agents receive a task-specific briefing within an approximate size budget, not the whole store.
-5. **Human-readable and machine-validatable.** A developer can read and hand-edit every record without Aletheic installed, and CI can validate them without a model.
+5. **Human-readable and machine-validatable.** A developer can read and hand-edit every record without Alethic installed, and CI can validate them without a model.
 6. **Private by design.** Raw transcripts, credentials, customer data, and model-private memories never enter committed state.
 
 ## 3. Non-goals (v0)
@@ -35,7 +35,7 @@ Aletheic stores that context as small, typed, reviewable records inside the repo
 - Storing chat transcripts or reasoning traces, in full or in part.
 - Orchestrating agents: scheduling, running, or supervising them, or executing work on their behalf. The one command that runs anything is `alethic receipt run`, which runs a single command the caller names, in the foreground, only to observe its result and the code it ran on (§6.5). It does not schedule, retry, or supervise.
 - Hosted accounts, billing, sync services, or a central database.
-- Inferring "truth" from agent output automatically. Aletheic records who claimed what, with what evidence, and at what trust level. It never upgrades a claim on its own.
+- Inferring "truth" from agent output automatically. Alethic records who claimed what, with what evidence, and at what trust level. It never upgrades a claim on its own.
 - Semantic/embedding search. Retrieval is deterministic.
 
 ## 4. File layout
@@ -83,7 +83,7 @@ Every record (task, decision, knowledge, checkpoint, receipt) shares these field
 
 Unknown fields are rejected, and extensions require a new `schema_version`. Checkpoint and receipt ids SHOULD end in a UTC timestamp (`-20260913t201500z`) so that parallel writers never collide.
 
-A note on the brief's `status: verified`: in Aletheic, *verification is a trust level*, not a lifecycle status. A decision is `status: accepted` with `confidence: human-confirmed`, for example.
+A note on the brief's `status: verified`: in Alethic, *verification is a trust level*, not a lifecycle status. A decision is `status: accepted` with `confidence: human-confirmed`, for example.
 
 ## 6. Record kinds
 
@@ -235,7 +235,7 @@ A compact, append-only handoff snapshot for unfinished work. A checkpoint is wri
 - `task` (required): the task id.
 - `git` (required): `{branch?, base?, head, dirty, changed_paths?}`. `head` and `dirty` are required, so a checkpoint without a Git reference is invalid.
   - `base`: merge-base with the default branch.
-  - `dirty`: whether the working tree had uncommitted changes, including untracked files, **outside `.alethic/`**. Writing Aletheic records never makes the code state dirty.
+  - `dirty`: whether the working tree had uncommitted changes, including untracked files, **outside `.alethic/`**. Writing Alethic records never makes the code state dirty.
   - `changed_paths`: paths changed since `base`, including uncommitted changes when `dirty: true`.
 - `done`: what is finished.
 - `failed_approaches`: `[{approach, why_failed, evidence?}]`. This is the field most often missing from handoffs, and one of the most valuable.
@@ -383,7 +383,7 @@ Every record carries exactly one `confidence`. From lowest to highest trust: `in
 
 ### 8.1 Trust boundary
 
-Aletheic runs with the permissions of whoever invokes it. Any process that can write the working tree (an agent, a person, a script) can create or edit any record, choose any label, and name any person. The format's checks make labels **consistent and visible**, not unforgeable. Identity, evidence provenance, and current applicability are separate questions: `created_by` and `recorded_by` say who wrote something, `confidence` and `evidence` say where a claim comes from, and staleness (§9) says whether it still matches the code.
+Alethic runs with the permissions of whoever invokes it. Any process that can write the working tree (an agent, a person, a script) can create or edit any record, choose any label, and name any person. The format's checks make labels **consistent and visible**, not unforgeable. Identity, evidence provenance, and current applicability are separate questions: `created_by` and `recorded_by` say who wrote something, `confidence` and `evidence` say where a claim comes from, and staleness (§9) says whether it still matches the code.
 
 | Level | Establishes | Does not establish |
 |---|---|---|
@@ -467,7 +467,7 @@ Each record fingerprints at most `limits.max_fingerprints_per_record` files: cit
 
 ## 11. Merge behavior and conflicts
 
-Aletheic relies on Git to merge records and adds checks for the conflicts Git cannot see.
+Alethic relies on Git to merge records and adds checks for the conflicts Git cannot see.
 
 | Situation | What happens |
 |---|---|
@@ -498,7 +498,7 @@ An `active` task has an `owner` with a lease, which signals to other agents that
 
 ## 13. Privacy boundary
 
-Committed Aletheic state is **shared, reviewable, and permanent**: once pushed, assume it is public to everyone with repository access, forever.
+Committed Alethic state is **shared, reviewable, and permanent**: once pushed, assume it is public to everyone with repository access, forever.
 
 MUST NOT appear in any record:
 
@@ -587,7 +587,7 @@ Created .alethic/tasks/task-invalidate-sessions-after-password-reset.yaml (activ
 $ git add .alethic && git commit -m "alethic: start session reset task"
 ```
 
-Codex works and runs the auth tests, which fail. It records the result without Aletheic running anything:
+Codex works and runs the auth tests, which fail. It records the result without Alethic running anything:
 
 ```console
 $ pnpm test auth > /tmp/auth.log; echo $?
@@ -665,7 +665,7 @@ You do not need the CLI to write a valid checkpoint.
 2. Create `.alethic/checkpoints/cp-<task-slug>-<yyyymmdd>t<hhmmss>z.yaml`. The `id` MUST match the file name.
 3. Fill in the required fields: `id`, `kind: checkpoint`, `schema_version: 1`, `summary`, `status: recorded`, `confidence` (use `agent-reported`, or `inferred` when reconstructing from history), `created_by.agent` (`human` if you are writing it yourself), `created_at` (UTC, ending in `Z`), `task`, `git.head`, `git.dirty`, and `next_safe_action`. Quote shas.
 4. Add whatever else helps the next person: `done`, `failed_approaches`, `open_questions`, `receipts`. Leave out anything private (§13).
-5. Validate with `alethic validate`, or without Aletheic by converting the YAML to JSON and checking it against `schemas/checkpoint.schema.json` with any JSON Schema 2020-12 validator (register `schemas/common.schema.json` too).
+5. Validate with `alethic validate`, or without Alethic by converting the YAML to JSON and checking it against `schemas/checkpoint.schema.json` with any JSON Schema 2020-12 validator (register `schemas/common.schema.json` too).
 6. Commit it.
 
 Use the example in §6.4 as a template. For contrast, this is **invalid**: it has no `git.head`, and its changed path is absolute.

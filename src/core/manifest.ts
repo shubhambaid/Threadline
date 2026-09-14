@@ -54,7 +54,7 @@ export function resolveManifest(raw: RawManifest): Manifest {
 
 /** The manifest written by `alethic init`. JSON strings are valid YAML scalars. */
 export function defaultManifestYaml(projectName: string, defaultBranch: string): string {
-  return `# Aletheic manifest. See docs/spec.md §7.
+  return `# Alethic manifest. See docs/spec.md §7.
 format_version: 1
 project:
   name: ${JSON.stringify(projectName)}

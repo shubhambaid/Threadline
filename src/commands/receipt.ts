@@ -61,7 +61,7 @@ function ciProvenance(
 }
 
 /**
- * Records the result of a check someone already ran, as reported. Aletheic did not observe it,
+ * Records the result of a check someone already ran, as reported. Alethic did not observe it,
  * and the receipt says so (`provenance.capture: imported`). A receipt made in CI on a clean tree
  * is `ci-reported`, which is still a self-report (docs/spec.md §8); nothing here can produce
  * `ci-verified`.

@@ -1,10 +1,10 @@
-# Aletheic with Claude Code
+# Alethic with Claude Code
 
-Claude Code can use Aletheic through its instruction file (`CLAUDE.md`), through the CLI in its shell, and through MCP.
+Claude Code can use Alethic through its instruction file (`CLAUDE.md`), through the CLI in its shell, and through MCP.
 
 Configuration below was checked against the Claude Code documentation on 2026-09-13. If Claude Code changes its config format, trust the vendor docs over this page, and please open an issue.
 
-> Aletheic is not published to npm yet. Until it is, build it (`npm install && npm run build`) and use `node /path/to/Aletheic/dist/cli.js` wherever this page says `alethic`.
+> Alethic is not published to npm yet. Until it is, build it (`npm install && npm run build`) and use `node /path/to/alethic/dist/cli.js` wherever this page says `alethic`.
 
 ## 1. Install
 

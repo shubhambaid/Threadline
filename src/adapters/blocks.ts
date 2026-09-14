@@ -27,13 +27,13 @@ export function instructionBlock(kind: InstructionKind): string {
   const agent = AGENT_NAMES[kind];
   return [
     BLOCK_BEGIN,
-    "## Aletheic shared memory",
+    "## Alethic shared memory",
     "",
     "This repository keeps shared task memory in `.alethic/` so work can move between agents without chat history.",
     "",
     `- Before non-trivial work, run \`alethic resume --target ${agent}\` and read the briefing. Items marked ⚠ are claims to check, not facts.`,
     `- Identify yourself with \`ALETHIC_AGENT=${agent}\` and, once per session, \`export ALETHIC_SESSION=$(alethic session new)\`. Claim a task before changing it: \`alethic task claim <id>\`, or \`alethic task start "<intent>" --paths <globs>\`.`,
-    '- Run checks through Aletheic so the result and the code it saw are recorded: `alethic receipt run -- <command>`. For a check that already ran, use `alethic receipt add --command "<cmd>" --exit-code <n> --output-file <log>`.',
+    '- Run checks through Alethic so the result and the code it saw are recorded: `alethic receipt run -- <command>`. For a check that already ran, use `alethic receipt add --command "<cmd>" --exit-code <n> --output-file <log>`.',
     "- Record choices with `alethic decision add` and durable facts with `alethic knowledge add`.",
     '- Checkpoint only at meaningful boundaries (before stopping or handing off, after a decision, after an approach fails): `alethic checkpoint create --next "<next step>"`.',
     "- Never put chat transcripts, secrets, credentials, customer data, or private agent memories in `.alethic/`.",
@@ -75,7 +75,7 @@ export function upsertBlock(
   const end = ends[0];
   if (begins.length !== 1 || ends.length !== 1 || !begin || !end || end.index < begin.index) {
     throw new UsageError(
-      `${fileName} has malformed Aletheic markers (${begins.length} begin, ${ends.length} end). ` +
+      `${fileName} has malformed Alethic markers (${begins.length} begin, ${ends.length} end). ` +
         `Leave exactly one "${BLOCK_BEGIN}" line followed by one "${BLOCK_END}" line, or remove both.`,
     );
   }

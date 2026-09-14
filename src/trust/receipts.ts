@@ -79,7 +79,7 @@ export type ReceiptApplicability =
 
 export interface ReceiptAssessment {
   applicability: ReceiptApplicability;
-  /** Aletheic ran the command and captured state (`receipt run`), rather than being told. */
+  /** Alethic ran the command and captured state (`receipt run`), rather than being told. */
   observed: boolean;
   coverage?: Coverage;
   /** The working tree had uncommitted changes when the check ran (or was reported). */
@@ -168,7 +168,7 @@ export function describeApplicability(receipt: ReceiptAssessment | undefined): {
   if (!receipt) return { short: "applicability unknown", full: "applicability unknown" };
   const how = receipt.observed
     ? "observed by `alethic receipt run`"
-    : "reported to Aletheic, not observed";
+    : "reported to Alethic, not observed";
   const files = receipt.coverage === "scope" ? "the files in its paths" : "files";
   const dirty = receipt.observed && receipt.ranDirty ? "; it ran on uncommitted changes" : "";
   switch (receipt.applicability) {

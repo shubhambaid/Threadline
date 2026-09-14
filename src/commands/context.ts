@@ -25,7 +25,7 @@ export async function requireInitialized(io: Io): Promise<string> {
   const root = await resolveRepoRoot(io);
   if (!(await isInitialized(root))) {
     throw new UsageError(
-      "Aletheic is not initialized in this repository. Run `alethic init` first.",
+      "Alethic is not initialized in this repository. Run `alethic init` first.",
     );
   }
   return root;

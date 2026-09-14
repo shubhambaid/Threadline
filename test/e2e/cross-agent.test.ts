@@ -89,7 +89,7 @@ it("hands one task from Codex to Claude Code to Gemini through shared records", 
   const claude = await connectMcp(repo.root, "claude-code", CLAUDE_AT);
   try {
     const briefing = textOf(await claude.call("resume", { target: "claude-code" }));
-    expect(briefing).toContain(`# Aletheic briefing: ${TASK}`);
+    expect(briefing).toContain(`# Alethic briefing: ${TASK}`);
     expect(briefing).toContain("Compare token_version in apps/api/auth/refresh.ts");
     expect(briefing).toContain("Delete session rows on reset");
     expect(briefing).toMatch(/`pnpm test auth` failed \(exit 1\)/);
@@ -171,7 +171,7 @@ it("hands one task from Codex to Claude Code to Gemini through shared records", 
   expect(writers("decisions")).toEqual(["claude-code"]);
   expect(await repo.run(["status", "--porcelain"])).toBe("");
   const summary = expectOk(await cli(["render", "pr-summary", "--task", TASK], gemini)).stdout;
-  expect(summary).toContain(`Aletheic task \`${TASK}\`: done, owner gemini.`);
+  expect(summary).toContain(`Alethic task \`${TASK}\`: done, owner gemini.`);
   expect(summary).toMatch(/- Passed: `pnpm test` \(exit 0\)/);
   expect(summary).not.toContain("### Next");
 });

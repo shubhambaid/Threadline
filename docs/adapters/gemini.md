@@ -1,10 +1,10 @@
-# Aletheic with Gemini CLI
+# Alethic with Gemini CLI
 
-Gemini CLI can use Aletheic through its context file (`GEMINI.md` by default), through the CLI in its shell, and through MCP.
+Gemini CLI can use Alethic through its context file (`GEMINI.md` by default), through the CLI in its shell, and through MCP.
 
 Configuration below was checked against the Gemini CLI documentation on 2026-09-13. If Gemini CLI changes its config format, trust the vendor docs over this page, and please open an issue. Antigravity setup has not been verified yet; any agent with a shell can use the CLI directly.
 
-> Aletheic is not published to npm yet. Until it is, build it (`npm install && npm run build`) and use `node /path/to/Aletheic/dist/cli.js` wherever this page says `alethic`.
+> Alethic is not published to npm yet. Until it is, build it (`npm install && npm run build`) and use `node /path/to/alethic/dist/cli.js` wherever this page says `alethic`.
 
 ## 1. Install
 
@@ -80,7 +80,7 @@ Or edit `settings.json`:
 
 The server works on the Git repository containing its working directory. To pin a repository, set `"cwd": "/path/to/repo"`, or use `"args": ["-C", "/path/to/repo", "mcp"]`.
 
-Leave `trust` unset unless you want Gemini to call Aletheic's write tools without confirmation.
+Leave `trust` unset unless you want Gemini to call Alethic's write tools without confirmation.
 
 ## What the server does not do
 

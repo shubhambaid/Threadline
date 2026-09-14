@@ -1,4 +1,4 @@
-# Aletheic CLI
+# Alethic CLI
 
 The command is `alethic` (package `alethic`). Every command works without a model connection. The record format is defined in [spec.md](spec.md).
 
@@ -47,7 +47,7 @@ Global options:
 |---|---|
 | 0 | Success. `validate` found no errors; warnings and info notes are allowed. |
 | 1 | `validate` found at least one error, or `task close` refused because the task's records are invalid. |
-| 2 | A usage or environment problem: unknown command, missing option, not a Git repository, Aletheic not initialized, no agent identity, or a write refused because it would be invalid or leak a secret. |
+| 2 | A usage or environment problem: unknown command, missing option, not a Git repository, Alethic not initialized, no agent identity, or a write refused because it would be invalid or leak a secret. |
 
 ## Writing records safely
 
@@ -140,7 +140,7 @@ Later, `resume` compares the digest with the files as they are then, so an uncom
 
 ## `alethic receipt add`
 
-Records the result of a check that **already ran**, as reported. Aletheic did not observe it, so the receipt is marked `provenance.capture: imported`, and briefings say "reported to Aletheic, not observed". Prefer `receipt run` when you can run the check through Aletheic.
+Records the result of a check that **already ran**, as reported. Alethic did not observe it, so the receipt is marked `provenance.capture: imported`, and briefings say "reported to Alethic, not observed". Prefer `receipt run` when you can run the check through Alethic.
 
 ```console
 $ pnpm test auth > /tmp/auth.log; echo $?
@@ -261,7 +261,7 @@ Serves a read-only page on this machine that shows sessions, records, inferred h
 
 ```console
 $ alethic dashboard --port 0
-Aletheic dashboard: http://127.0.0.1:53211/
+Alethic dashboard: http://127.0.0.1:53211/
 Read-only, and reachable only from this machine. Press Ctrl+C to stop.
 ```
 
@@ -382,7 +382,7 @@ Scopes overlap when they share a pattern, when one names a path the other matche
 
 ## `alethic status`
 
-Shows the branch, HEAD, and dirty state (changes under `.alethic/` don't count as dirty), record counts, active tasks with their owners, leases, next actions, and latest checkpoints, other open tasks, and a validation summary. It always exits 0 once Aletheic is initialized; run `validate` for details.
+Shows the branch, HEAD, and dirty state (changes under `.alethic/` don't count as dirty), record counts, active tasks with their owners, leases, next actions, and latest checkpoints, other open tasks, and a validation summary. It always exits 0 once Alethic is initialized; run `validate` for details.
 
 `--json` prints `{ project, git, counts, activeTasks[], openTasks[], validation }`.
 
@@ -406,7 +406,7 @@ Validate records on every pull request with the bundled action:
 - uses: actions/checkout@v7
   with:
     fetch-depth: 0 # full history, so evidence commits can be checked
-- uses: shubhambaid/Aletheic@main
+- uses: shubhambaid/alethic@main
   with:
     strict: "true"
 ```

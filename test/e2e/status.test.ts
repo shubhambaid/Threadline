@@ -9,7 +9,7 @@ describe("alethic status", () => {
     expect(result.code).toBe(0);
     const head = (repo.commits.at(-1) ?? "").slice(0, 7);
     for (const line of [
-      "Aletheic status: fixture-valid",
+      "Alethic status: fixture-valid",
       `  branch   main @ ${head} (clean)`,
       "  records  1 task, 1 decision, 1 knowledge, 1 checkpoint, 1 receipt",
       "  task-session-reset: Invalidate sessions after password reset.",
