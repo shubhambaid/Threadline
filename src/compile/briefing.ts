@@ -2,7 +2,7 @@ import { asArray, asObject, asString } from "../core/json.js";
 import type { LoadedRecord } from "../core/store.js";
 import { NOT_DETERMINED, oneLine, truncate } from "../core/text.js";
 import { isVerified } from "../trust/confidence.js";
-import type { DerivedStatus, StalenessResult } from "../trust/staleness.js";
+import { type DerivedStatus, STALE_STATUSES, type StalenessResult } from "../trust/staleness.js";
 import {
   allocate,
   type BriefingItem,
@@ -42,11 +42,8 @@ const SECTION_PRIORITY = {
   files: 1000,
 } as const;
 
-const STALE: ReadonlySet<DerivedStatus> = new Set([
-  "needs_reverification",
-  "diverged",
-  "broken_evidence",
-]);
+/** Records whose warnings must survive small budgets: listed first in their section. */
+const ATTENTION: ReadonlySet<DerivedStatus> = new Set([...STALE_STATUSES, "uncertain"]);
 
 export interface CheckpointRelation {
   kind: "head" | "ahead" | "other-line" | "unavailable";
@@ -118,10 +115,20 @@ function count(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
 }
 
+/**
+ * Freshness and trust markers, from the same derived statuses the dashboard shows (spec §9).
+ * Any change to direct evidence is flagged; its size only says how much review it needs.
+ */
 export function markers(data: Data, staleness?: StalenessResult): string {
   const parts: string[] = [];
-  if (staleness && STALE.has(staleness.status)) {
-    parts.push(`⚠ may be stale: ${staleness.reasons[0] ?? staleness.status.replace(/_/g, " ")}`);
+  const reason = staleness?.reasons[0] ?? staleness?.status.replace(/_/g, " ");
+  if (staleness && STALE_STATUSES.has(staleness.status)) {
+    const size = staleness.review === "small" ? " (small change)" : "";
+    parts.push(`⚠ may be stale${size}: ${reason}`);
+  } else if (staleness?.status === "uncertain") {
+    parts.push(`⚠ applicability unknown: ${reason}`);
+  } else if (staleness?.status === "scope_changed") {
+    parts.push(`ℹ nearby files changed, cited files did not: ${reason}`);
   }
   if (!isVerified(data.confidence)) parts.push("⚠ unverified");
   return parts.length > 0 ? ` ${parts.join(" ")}` : "";
@@ -131,11 +138,11 @@ function fixed(key: string, text: string): BriefingItem {
   return { key, full: text, short: text, pointer: "", priority: 0 };
 }
 
-/** Records that may be stale first, so their warnings survive small budgets; rank otherwise. */
+/** Records needing attention first, so their warnings survive small budgets; rank otherwise. */
 function warningsFirst(records: ScoredCandidate[]): ScoredCandidate[] {
   return [
-    ...records.filter((r) => STALE.has(r.staleness.status)),
-    ...records.filter((r) => !STALE.has(r.staleness.status)),
+    ...records.filter((r) => ATTENTION.has(r.staleness.status)),
+    ...records.filter((r) => !ATTENTION.has(r.staleness.status)),
   ];
 }
 

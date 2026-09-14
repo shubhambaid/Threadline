@@ -42,7 +42,11 @@
     "staleness": {
       "type": "object",
       "properties": {
-        "changed_lines_threshold": { "type": "integer", "minimum": 0 }
+        "changed_lines_threshold": {
+          "description": "Changes to direct evidence of at most this many lines are labeled small, larger ones large. The label orders review; any change to direct evidence needs re-verification.",
+          "type": "integer",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },

@@ -165,7 +165,7 @@ How records are chosen (deterministic, no embeddings):
 
 They are ranked by how they were found (explicit links first), trust level (`ci-reported` counts the same as `agent-reported`), accepted status, whether their anchor is on this line of history, and, for receipts, whether the code is unchanged since they ran; then recency and id. Staleness never lowers a record's rank: a record that may be stale is shown with its warning rather than hidden. Within their section, records that may be stale are listed first, so their warnings survive small budgets.
 
-Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose anchored content changed materially are marked `⚠ may be stale: <reason>` (spec §9).
+Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose direct evidence changed by any amount are marked `⚠ may be stale: <reason>`, with `(small change)` when the change is within `staleness.changed_lines_threshold`. Records whose applicability cannot be established are marked `⚠ applicability unknown: <reason>`, and records whose cited files are unchanged while nearby files matched by a scope glob changed get `ℹ nearby files changed, cited files did not: <reason>` (spec §9).
 
 ## `alethic render`
 
@@ -247,7 +247,8 @@ Finding codes:
 | `missing-commit` | warning (error with `--strict`) | An evidence commit, `git.head`, or `git.base` is not in the repository. |
 | `unavailable-commit` | info | `valid_at` or `anchor.commit` is not in the repository. Expected after squash merges; never a failure. |
 | `append-only` | error | A committed checkpoint or receipt was edited. |
-| `needs-reverification` | warning | An active decision's or knowledge record's direct files changed beyond `staleness.changed_lines_threshold`, or files were added to its scope (spec §9). |
+| `needs-reverification` | warning | An active decision's or knowledge record's direct files changed by any amount, or files were added to a scope with no direct files (spec §9). The message gives the size; `staleness.changed_lines_threshold` only labels it small or large. |
+| `uncertain-applicability` | warning | An anchored decision or knowledge record cites evidence that has no fingerprint, so changes to it cannot be detected. |
 | `diverged` | warning | The record was anchored on another line of history, and the content here differs. |
 | `contradiction` | warning | Two accepted decisions on the same topic have overlapping scopes, and neither supersedes the other (spec §11). |
 

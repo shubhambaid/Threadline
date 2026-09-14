@@ -65,7 +65,7 @@ privacy:
     - "**/*.pem"
     - "**/id_rsa*"
 staleness:
-  changed_lines_threshold: 20
+  changed_lines_threshold: 20 # larger changes are labeled large; any change to cited code needs re-verification
 limits:
   max_glob_matches: 2000
   max_fingerprints_per_record: 50

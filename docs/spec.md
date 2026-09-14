@@ -401,14 +401,21 @@ The derived status is computed at read time and never written into the record au
 
 | Derived status | Condition |
 |---|---|
-| `fresh` | Every fingerprint matches the current tree. |
-| `needs_reverification` | A fingerprinted file's content changed by more than `staleness.changed_lines_threshold` lines, or files were added to or removed from the scope. |
+| `unchanged` | Every fingerprint that counts matches the current tree, and nothing was added under the record's direct scope. |
+| `scope_changed` | The direct files are unchanged, but files matched only by a scope glob changed, were removed, or were added. The claim's own evidence did not change. |
+| `uncertain` | Whether the record still applies cannot be established: it names files but nothing was fingerprinted, or a cited `evidence.files` path has no fingerprint. |
+| `needs_reverification` | A direct file's content changed **by any amount**, a direct file was removed, or files were added to a scope that has no direct files. |
 | `broken_evidence` | A cited `evidence.files` path no longer exists. |
-| `diverged` | The anchor commit exists and is not an ancestor of `HEAD`, **and** fingerprints differ. The record describes code from another line of history that does not match this one. |
+| `diverged` | The anchor commit exists and is not an ancestor of `HEAD`, **and** direct content differs. The record describes code from another line of history that does not match this one. |
+| `unanchored` | The record names no files, so there is nothing to compare. |
 
-**Direct and context files.** A fingerprinted file is *direct* when it is listed in `evidence.files` or named exactly in `scope.paths`. Other fingerprinted files are *context*: they were matched only by a glob or a directory. When a record has any direct files, changes to context files are reported as notes and do not change the derived status. The same applies to files added under a glob and to changes summarized in `overflow`. This keeps a broad scope such as `apps/api/auth/**` from flagging a claim on every edit nearby. A record anchored only by globs has no direct files, so every matched file counts for it.
+**Any change counts.** A one-line edit can reverse the condition a claim depends on, so no change to direct evidence is small enough to ignore. Differences are counted with a line diff that respects order, so reordering operations is a change. `staleness.changed_lines_threshold` only labels a change *small* or *large* to help order review; the label never makes a record `unchanged`. When the anchored version of a changed file is not in the repository (for example, it was never committed), the size is reported as *unknown* rather than guessed.
 
-An anchor commit that is missing, or not an ancestor, while the fingerprints still match is reported only as an informational note ("anchor commit unavailable"). This is why a record created on a feature branch stays `fresh` after that branch is squash-merged and deleted.
+**Direct and context files.** A fingerprinted file is *direct* when it is listed in `evidence.files` or named exactly in `scope.paths`. Other fingerprinted files are *context*: they were matched only by a glob or a directory. When a record has any direct files, changes to context files, files added under a glob, and changes summarized in `overflow` give `scope_changed`, never `needs_reverification`, and the change is explained without implying that the evidence changed. Evidence files that overflowed the fingerprint limit are still direct. A record anchored only by globs has no direct files, so every matched file counts as direct for it.
+
+An anchor commit that is missing, or not an ancestor, while the fingerprints still match is reported only as an informational note ("anchor commit unavailable"). This is why a record created on a feature branch stays `unchanged` after that branch is squash-merged and deleted.
+
+`validate` warns about `needs_reverification`, `diverged`, and `uncertain` records that have an anchor (`uncertain-applicability`). Hand-written records without an anchor (§18) are not warned about, but briefings and the dashboard still mark them. Briefings mark `needs_reverification`, `diverged`, and `broken_evidence` as *may be stale* (noting a *small change* when it is one), `uncertain` as *applicability unknown*, and `scope_changed` with an informational note.
 
 A record is re-anchored only by an explicit action (`alethic verify`), and that action shows up as a diff.
 
@@ -489,7 +496,7 @@ Rules:
 
 - **Deterministic.** The same records and Git state always produce byte-identical output. Retrieval uses task ids, explicit links, path overlap, topic, trust level, recency, and Git state, never embeddings.
 - **Traceable.** Every bullet cites its source: a record id (`[dec-auth-session-rotation]`), a commit (`(commit 83fa2de)`), or a receipt.
-- **Honest.** Claims that are not `human-confirmed` or `ci-verified` are marked *unverified*. Records whose derived status is not `fresh` are marked *may be stale*.
+- **Honest.** Claims that are not `human-confirmed` or `ci-verified` are marked *unverified*. Records whose evidence changed are marked *may be stale*, records whose applicability cannot be established are marked *applicability unknown*, and changes only around a record's evidence are noted as such (§9).
 - **Budgeted, approximately.** `--budget` is an **approximate** size target, estimated as `ceil(characters / 4)` tokens. Real tokenizer counts vary by model, so the budget is not a guarantee. Goal, repository state, and next safe action are always included. When space runs out, lower-priority items collapse to one-line summaries, then to "N more: ids…" pointers.
 - The `--target` agent changes only framing hints, such as which instruction file or MCP tools exist, never the content.
 - **Checked before compiled.** Briefings, PR summaries, record views, and MCP record resources use the same record assessment as `validate` (§16). A record with a schema violation, an id or kind mismatch, a duplicate id, secret-like content, a forbidden path, or an untrusted trust label (such as a hand-written `ci-verified`) is **withheld**: none of its content is emitted, and it cannot be selected as the task. Other findings, such as an expired lease or a missing commit, leave a record usable.

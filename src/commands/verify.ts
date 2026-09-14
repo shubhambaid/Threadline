@@ -127,7 +127,7 @@ export async function verifyCommand(io: Io, id: string, options: VerifyOptions):
   const file = await saveRecord(ctx, record.kind, updated, { overwrite: true });
 
   const was =
-    before.status === "fresh" || before.status === "unanchored"
+    before.status === "unchanged" || before.status === "unanchored"
       ? before.status
       : `${before.status}: ${before.reasons[0] ?? ""}`;
   reportWrite(

@@ -165,6 +165,7 @@ async function checkCommits(
 const STALE_CODES: Partial<Record<DerivedStatus, string>> = {
   needs_reverification: "needs-reverification",
   diverged: "diverged",
+  uncertain: "uncertain-applicability",
 };
 
 /**
@@ -188,14 +189,17 @@ async function checkStaleness(
     const result = await assessStaleness(ctx, record.data);
     const code = STALE_CODES[result.status];
     if (!code) continue;
+    // Hand-written records may omit the anchor (spec §18); briefings still mark them.
+    if (result.status === "uncertain" && result.anchor === "none") continue;
     const id = asString(record.data.id) ?? record.file;
     const more = result.reasons.length > 1 ? ` (and ${result.reasons.length - 1} more)` : "";
+    const label = result.status === "uncertain" ? "Applicability unknown" : "May be stale";
     findings.push({
       severity: "warning",
       code,
       file: record.file,
       path: "anchor",
-      message: `May be stale: ${result.reasons[0] ?? result.status}${more}`,
+      message: `${label}: ${result.reasons[0] ?? result.status}${more}`,
       hint: `Check it against the current code, then run \`alethic verify ${id}\` (with --human <name> if a person confirmed it), or supersede or deprecate it.`,
     });
   }
