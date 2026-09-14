@@ -367,6 +367,17 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       exitCode = await showCommand(ioFor(command), id, options);
     });
 
+  program
+    .command("dashboard")
+    .description("Serve a read-only local dashboard of sessions, records, handoffs, and health")
+    .option("--port <n>", "port to listen on (default: 4700; 0 picks a free port)")
+    .option("--host <address>", "loopback address: 127.0.0.1 (default), ::1, or localhost")
+    .option("--snapshot <file>", "write the dashboard's data as JSON (- for stdout) and exit")
+    .action(async (options, command: Command) => {
+      const { dashboardCommand } = await import("./commands/dashboard.js");
+      exitCode = await dashboardCommand(ioFor(command), options);
+    });
+
   withWriteOptions(
     program
       .command("verify")

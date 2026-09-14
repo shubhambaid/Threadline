@@ -12,21 +12,36 @@ Aletheic is pre-release. This page lists what exists, what is needed before a fi
 - Content-based staleness that survives squash merges and shallow clones, plus `verify`, contradiction and overlapping-claim detection, and `doctor`.
 - A demo that hands one task from Codex to Claude Code to Gemini, run by the test suite.
 
+## Done (improvement plan, see [IMPROVEMENT_PLAN.md](IMPROVEMENT_PLAN.md))
+
+- **Checked before compiled.** Briefings, PR summaries, record views, MCP resources, and the dashboard use the same record assessment as `validate`; invalid, forged, or secret-bearing records are withheld and reported.
+- **Conservative freshness.** Any change to cited evidence needs re-verification, sized with an order-respecting diff; `scope_changed` and `uncertain` are explicit.
+- **Attributed human confirmation.** `--human` is recorded as an attribution, bound to the confirmed text, and never shown as authenticated approval; the spec states the trust boundary.
+- **`receipt run`.** Checks observed by Aletheic, with content digests before and after, and applicability judged by content rather than commit.
+- **Bounded briefings.** Capped pointer lines, `alethic show`, an inspectable JSON result, and memoized Git lookups ([measurements](docs/performance.md)).
+- **Sessions and competing writes.** `ALETHIC_SESSION`, session-aware leases and overlap warnings, locked and version-checked record writes, and competing-claim detection.
+- **Input from files.** `--from-file` and stdin for checkpoints, decisions, and knowledge.
+- **Evaluation kit.** Reproducible handoff scenarios in three conditions and a protocol ([evaluation](docs/evaluation.md)).
+- **Dashboard.** A read-only local view of sessions, records, handoffs, briefings, and health ([dashboard](docs/dashboard.md)).
+
 ## Before the first release
 
 - **Publish** to npm as `alethic` (unclaimed when checked on 2026-09-14), with the `alethic` command.
-- **Verify the adapters in real sessions** of Codex, Claude Code, and Gemini CLI. Today they are checked against vendor documentation and exercised with the official MCP client, not in live agent sessions.
+- **Run the handoff evaluation in live sessions** of Codex, Claude Code, and Gemini CLI, following [docs/evaluation.md](docs/evaluation.md), and publish the results, including cases where a handoff file was enough. This also verifies the adapters, which are so far checked only against vendor documentation and the official MCP client.
 - **Antigravity setup**, verified the same way.
-- **Demo media**: a README GIF from `examples/demo/demo.tape` and a short video.
-- **Input from files** for agents that prefer writing YAML: `checkpoint create --from-file` (and stdin), plus the same for decisions and knowledge.
+- **Demo media**: a short video; the README has a dashboard screenshot.
+- **Use Aletheic in its own development** across sessions, and record the capture friction it exposes.
 
 ## Next
 
-- **`receipt run`**: run a command and record its receipt in one step. The instruction block will switch from `receipt add` to `receipt run` when this ships.
+- **Cross-worktree discovery**: read records from other refs (`--ref`, `status --all-branches`), so concurrent worktrees can find each other's tasks without checking out unfinished work.
 - **`ci-verified`**: verify receipts against GitHub Actions artifact attestations when `trust.ci_provenance: github-attestation` is configured. Until then `ci-verified` cannot be produced, by design (spec §8).
+- **Authenticated approval**: a verifiable reviewer identity bound to a claim digest, distinct from `--human` attribution (spec §8.1).
+- **Briefing-delivery events**: opt-in, versioned records of what an agent was given, labeled as delivered rather than read, for the dashboard.
+- **Historical dashboard views** of the ledger at earlier commits.
 - **Retiring old records**: archive closed tasks and their checkpoints so long-lived repositories stay fast to load.
 - **Optional tokenizer-accurate budgets**, keeping the characters / 4 estimate as the deterministic default.
 
 ## Not planned
 
-These are non-goals (spec §3): replacing Git, storing chat transcripts, orchestrating agents, hosted accounts or databases, and deciding automatically whether a claim is true.
+These are non-goals (spec §3): replacing Git, storing chat transcripts, orchestrating agents, hosted accounts or databases, and deciding automatically whether a claim is true. `receipt run` runs a single named command in the foreground to observe it; it does not schedule or supervise work.

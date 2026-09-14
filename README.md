@@ -38,6 +38,14 @@ The script builds a tiny auth service in a temporary directory, then hands one t
 - Bump users.tokenVersion on reset and compare it in refresh(). [cp-invalidate-sessions-after-password-reset-20260914t094000z]
 ```
 
+## See the work in the dashboard
+
+`alethic dashboard` serves a read-only page on this machine: one lane per agent session, the records each session wrote, the handoffs between them, and everything that needs attention. Here it shows the demo repository after an uncommitted edit to `src/sessions.js`: the decision the edit contradicts is flagged, its inspector compares the anchored and current content file by file, and the recorded checks no longer claim to apply.
+
+![Aletheic dashboard: session lanes with records and inferred handoffs, and an inspector showing a decision whose evidence changed](docs/assets/dashboard.png)
+
+Every relationship says whether a record states it or it was inferred, and nothing in the dashboard claims that an agent read a record. Details: [docs/dashboard.md](docs/dashboard.md).
+
 ## Quickstart
 
 Aletheic is not published to npm yet. Install it from source (Node 22.12 or later):
@@ -103,6 +111,8 @@ Every record carries a confidence label, an anchor to the code it describes, and
 | `verify`, `doctor` | Re-anchor checked claims; find stale records and conflicts |
 | `render` | Instruction-file blocks and pull request summaries |
 | `mcp` | Serve the same operations over MCP (stdio) |
+| `dashboard` | Explore sessions, records, handoffs, and health in a local read-only page |
+| `session new` | Print an id for `ALETHIC_SESSION`, so runs of one agent are told apart |
 
 Full reference: [docs/cli.md](docs/cli.md).
 

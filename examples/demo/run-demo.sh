@@ -52,7 +52,8 @@ note() { printf '%s$ %s%s\n' "$DIM" "$*" "$RESET"; }
 
 alethic() {
   show alethic "$@"
-  ALETHIC_AGENT="$AGENT" ALETHIC_NOW="$NOW" "${TL[@]}" "$@"
+  # One session per agent, as a real agent would set with `alethic session new`.
+  ALETHIC_AGENT="$AGENT" ALETHIC_SESSION="$AGENT-1" ALETHIC_NOW="$NOW" "${TL[@]}" "$@"
 }
 
 commit() {

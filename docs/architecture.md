@@ -69,6 +69,7 @@ The compiler is deterministic. It uses no embeddings and no model calls, and ide
 - **Instruction blocks** (`src/adapters/blocks.ts`): a short managed block between markers in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. Its job is the trigger: start from `alethic resume`.
 - **MCP** (`src/mcp/`): a dependency-free JSON-RPC server over stdio. Each tool call runs the matching CLI command in-process, one call at a time, so validation and the secret scan cannot drift from the CLI. The official MCP SDK is used only in tests.
 - **GitHub Action** (`action.yml`): runs `alethic validate` in CI.
+- **Dashboard** (`src/dashboard/`): `ledger.ts` builds a read model (sessions, record nodes, explicit and inferred edges, timeline, health) from the shared assessment, freshness, receipt, conflict, and validation code; `server.ts` serves it read-only on loopback; `page.ts` and `client.ts` are a single self-contained page with no dependencies. See [dashboard.md](dashboard.md).
 
 ## Source layout
 

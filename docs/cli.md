@@ -255,6 +255,24 @@ Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GE
 $ alethic render pr-summary | gh pr create --title "Invalidate sessions after password reset" --body-file -
 ```
 
+## `alethic dashboard`
+
+Serves a read-only page on this machine that shows sessions, records, inferred handoffs, briefings, and health. See [dashboard.md](dashboard.md).
+
+```console
+$ alethic dashboard --port 0
+Aletheic dashboard: http://127.0.0.1:53211/
+Read-only, and reachable only from this machine. Press Ctrl+C to stop.
+```
+
+- `--port <n>`: default 4700; `0` picks a free port. `--host`: `127.0.0.1` (default), `::1`, or `localhost`; other addresses are refused.
+- `--snapshot <file>`: write the page's data as JSON (`-` for stdout) and exit. Records that fail validation are withheld from it, as from the page.
+- The server answers only `GET` and `HEAD`, rejects requests addressed to other host names, sends a strict Content-Security-Policy, and never writes records or runs commands.
+
+## `alethic session new`
+
+Prints a fresh session id, prefixed with `--agent` or `ALETHIC_AGENT`: `export ALETHIC_SESSION=$(alethic session new)`. Records and task owners then carry the session, so two runs of the same agent are different writers (spec §12).
+
 ## `alethic mcp`
 
 Runs a Model Context Protocol server over stdio: newline-delimited JSON-RPC 2.0, protocol versions 2024-11-05 through 2025-11-25. Stdout carries only protocol messages, and diagnostics go to stderr. The server exits when the client closes stdin.
