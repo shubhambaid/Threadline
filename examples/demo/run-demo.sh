@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Aletheic demo: one task moves from Codex to Claude Code to Gemini, and each agent starts with
+# Alethic demo: one task moves from Codex to Claude Code to Gemini, and each agent starts with
 # nothing but the repository.
 #
 #   examples/demo/run-demo.sh [work-dir]
@@ -8,7 +8,7 @@
 # handoff spans hours, so the demo pins the clock with ALETHIC_NOW: record ids, timestamps, and
 # commit dates come out the same on every run.
 #
-# The Aletheic command is ALETHIC_BIN if set, else `alethic` on PATH, else this checkout's
+# The Alethic command is ALETHIC_BIN if set, else `alethic` on PATH, else this checkout's
 # dist/cli.js (run `npm run build` first). test/e2e/demo.test.ts runs this script, so it cannot rot.
 set -euo pipefail
 
@@ -25,7 +25,7 @@ elif command -v alethic >/dev/null 2>&1; then
 elif [[ -f "$REPO_ROOT/dist/cli.js" ]]; then
   TL=(node "$REPO_ROOT/dist/cli.js")
 else
-  echo "Aletheic is not built. Run \`npm run build\`, or set ALETHIC_BIN." >&2
+  echo "Alethic is not built. Run \`npm run build\`, or set ALETHIC_BIN." >&2
   exit 2
 fi
 
@@ -64,7 +64,7 @@ commit() {
     git commit -q -m "$1"
 }
 
-# Runs a check, shows its result, and records a receipt. Aletheic records; it never runs checks.
+# Runs a check, shows its result, and records a receipt. Alethic records; it never runs checks.
 check() {
   local log="$WORK/check.log" code=0
   show "$@"
@@ -80,7 +80,7 @@ apply() {
   cp -R "$DEMO_DIR/steps/$1/src/." src/
 }
 
-say "Setup: a small auth service, with Aletheic and one instruction block for every agent"
+say "Setup: a small auth service, with Alethic and one instruction block for every agent"
 mkdir -p "$WORK"
 rm -rf "$APP"
 cp -R "$DEMO_DIR/app" "$APP"
@@ -94,7 +94,7 @@ printf '@AGENTS.md\n' >CLAUDE.md
 note 'echo '"'"'{ "context": { "fileName": ["AGENTS.md", "GEMINI.md"] } }'"'"' > .gemini/settings.json'
 mkdir -p .gemini
 printf '{\n  "context": { "fileName": ["AGENTS.md", "GEMINI.md"] }\n}\n' >.gemini/settings.json
-commit "Add auth service with Aletheic"
+commit "Add auth service with Alethic"
 
 say "Codex starts the task and tries deleting session rows"
 AGENT=codex NOW=2026-09-14T09:10:00Z

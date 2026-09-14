@@ -39,7 +39,7 @@ describe("alethic render (instruction files)", () => {
     writeFileSync(file, "# Claude notes\n\nUse pnpm, not npm.\n");
 
     expect(expectOk(await cli(["render", "claude-md", "--write"], { cwd: repo.root })).stdout).toBe(
-      "Added the Aletheic block to CLAUDE.md.\n",
+      "Added the Alethic block to CLAUDE.md.\n",
     );
     const written = readFileSync(file, "utf8");
     expect(written.startsWith("# Claude notes\n\nUse pnpm, not npm.\n\n")).toBe(true);
@@ -53,7 +53,7 @@ describe("alethic render (instruction files)", () => {
     expect(check.stderr).toContain("CLAUDE.md is out of date");
 
     expect(expectOk(await cli(["render", "claude-md", "--write"], { cwd: repo.root })).stdout).toBe(
-      "Updated the Aletheic block in CLAUDE.md.\n",
+      "Updated the Alethic block in CLAUDE.md.\n",
     );
     const repaired = readFileSync(file, "utf8");
     expect(repaired).toBe(`${written}\n## Later section\nKeep me.\n`);
@@ -66,7 +66,7 @@ describe("alethic render (instruction files)", () => {
     writeFileSync(file, content);
     const result = await cli(["render", "gemini-md", "--write"], { cwd: repo.root });
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain("GEMINI.md has malformed Aletheic markers");
+    expect(result.stderr).toContain("GEMINI.md has malformed Alethic markers");
     expect(readFileSync(file, "utf8")).toBe(content);
   });
 
@@ -78,7 +78,7 @@ describe("alethic render (instruction files)", () => {
 
     for (const flag of ["--write", "--check"]) {
       const result = expectOk(await cli(["render", "claude-md", flag], { cwd: repo.root }));
-      expect(result.stdout).toContain("imports AGENTS.md, which already has the Aletheic block");
+      expect(result.stdout).toContain("imports AGENTS.md, which already has the Alethic block");
     }
     expect(readFileSync(file, "utf8")).toBe("@AGENTS.md\n\n# Claude-only notes\n");
   });
@@ -171,7 +171,7 @@ describe("alethic render pr-summary", () => {
 
     const summary = expectOk(await cli(["render", "pr-summary"], codex)).stdout;
     expect(summary).toMatch(/^## Invalidate sessions after password reset\n/);
-    expect(summary).toContain("Aletheic task `task-reset-sessions`: active, owner codex.");
+    expect(summary).toContain("Alethic task `task-reset-sessions`: active, owner codex.");
     expect(summary).toContain(
       "- Store token_version on users. Why: One write per user revokes every session. `dec-auth-session-invalidation` ⚠ unverified",
     );

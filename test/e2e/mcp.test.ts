@@ -89,7 +89,7 @@ describe("alethic mcp", () => {
     expect(JSON.parse(textOf(checkpoint)).receipts).toHaveLength(1);
 
     const briefing = textOf(await call("resume", { target: "claude-code", budget: 1500 }));
-    expect(briefing).toContain(`# Aletheic briefing: ${taskId}`);
+    expect(briefing).toContain(`# Alethic briefing: ${taskId}`);
     expect(briefing).toContain("Invalidate the cached refresh entry.");
     expect(briefing).toContain("Delete session rows");
 

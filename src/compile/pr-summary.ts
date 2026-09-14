@@ -37,7 +37,7 @@ export function buildPrSummary(input: PrSummaryInput): string {
     "",
     oneLine(asString(task.intent) ?? ""),
     "",
-    `Aletheic task ${cite(taskId)}: ${status}${owner ? `, owner ${owner}` : ""}.`,
+    `Alethic task ${cite(taskId)}: ${status}${owner ? `, owner ${owner}` : ""}.`,
   ];
   const section = (title: string, items: string[]) => {
     if (items.length > 0) lines.push("", `### ${title}`, "", ...items);

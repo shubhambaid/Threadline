@@ -38,7 +38,7 @@ export interface ValidationReport {
 const SHA = /^[0-9a-f]{7,64}$/;
 
 /**
- * Runs every check from docs/spec.md §16 against the repository's Aletheic state: the shared
+ * Runs every check from docs/spec.md §16 against the repository's Alethic state: the shared
  * record assessment (the same one `resume` relies on), plus checks that need Git or the filesystem.
  */
 export async function validateRepository(

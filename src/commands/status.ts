@@ -61,7 +61,7 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
   }
 
   const lines = [
-    `Aletheic status: ${status.project ?? "(manifest invalid)"}`,
+    `Alethic status: ${status.project ?? "(manifest invalid)"}`,
     `  branch   ${branch ?? "(detached HEAD)"} @ ${head ? head.slice(0, 7) : "no commits"} (${dirty ? "dirty" : "clean"})`,
     `  records  ${[
       plural(counts.task, "task"),

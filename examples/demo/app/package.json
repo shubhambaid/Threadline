@@ -2,7 +2,7 @@
   "name": "auth-service-demo",
   "private": true,
   "type": "module",
-  "description": "A deliberately tiny auth service for the Aletheic handoff demo. No dependencies.",
+  "description": "A deliberately tiny auth service for the Alethic handoff demo. No dependencies.",
   "scripts": {
     "test": "node --test"
   }

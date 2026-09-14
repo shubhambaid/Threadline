@@ -1,6 +1,6 @@
 # Roadmap
 
-Aletheic is pre-release. This page lists what exists, what is needed before a first published release, and what may come later. Items can move as real use shows what matters.
+Alethic is pre-release. This page lists what exists, what is needed before a first published release, and what may come later. Items can move as real use shows what matters.
 
 ## Done (v0)
 
@@ -17,7 +17,7 @@ Aletheic is pre-release. This page lists what exists, what is needed before a fi
 - **Checked before compiled.** Briefings, PR summaries, record views, MCP resources, and the dashboard use the same record assessment as `validate`; invalid, forged, or secret-bearing records are withheld and reported.
 - **Conservative freshness.** Any change to cited evidence needs re-verification, sized with an order-respecting diff; `scope_changed` and `uncertain` are explicit.
 - **Attributed human confirmation.** `--human` is recorded as an attribution, bound to the confirmed text, and never shown as authenticated approval; the spec states the trust boundary.
-- **`receipt run`.** Checks observed by Aletheic, with content digests before and after, and applicability judged by content rather than commit.
+- **`receipt run`.** Checks observed by Alethic, with content digests before and after, and applicability judged by content rather than commit.
 - **Bounded briefings.** Capped pointer lines, `alethic show`, an inspectable JSON result, and memoized Git lookups ([measurements](docs/performance.md)).
 - **Sessions and competing writes.** `ALETHIC_SESSION`, session-aware leases and overlap warnings, locked and version-checked record writes, and competing-claim detection.
 - **Input from files.** `--from-file` and stdin for checkpoints, decisions, and knowledge.
@@ -30,7 +30,7 @@ Aletheic is pre-release. This page lists what exists, what is needed before a fi
 - **Run the handoff evaluation in live sessions** of Codex, Claude Code, and Gemini CLI, following [docs/evaluation.md](docs/evaluation.md), and publish the results, including cases where a handoff file was enough. This also verifies the adapters, which are so far checked only against vendor documentation and the official MCP client.
 - **Antigravity setup**, verified the same way.
 - **Demo media**: a short video; the README has a dashboard screenshot.
-- **Use Aletheic in its own development** across sessions, and record the capture friction it exposes.
+- **Use Alethic in its own development** across sessions, and record the capture friction it exposes.
 
 ## Next
 

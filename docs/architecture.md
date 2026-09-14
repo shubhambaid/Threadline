@@ -1,6 +1,6 @@
 # Architecture
 
-Aletheic is a CLI over a directory of YAML files. Every other surface (the MCP server, instruction blocks, the GitHub Action) goes through the same commands. There is no service, database, or network access.
+Alethic is a CLI over a directory of YAML files. Every other surface (the MCP server, instruction blocks, the GitHub Action) goes through the same commands. There is no service, database, or network access.
 
 ```mermaid
 flowchart LR

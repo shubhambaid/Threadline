@@ -48,7 +48,7 @@ it("runs examples/demo/run-demo.sh end to end", async () => {
 
   // Claude Code's only context is the briefing compiled from Codex's records.
   const claude = between(stdout, "== Claude Code resumes", "== Gemini resumes");
-  expect(claude).toContain(`# Aletheic briefing: ${TASK}`);
+  expect(claude).toContain(`# Alethic briefing: ${TASK}`);
   expect(claude).toContain(
     "Delete session rows on reset. Failed because: refresh() reads the refresh cache first, so cached sessions keep working.",
   );
@@ -65,7 +65,7 @@ it("runs examples/demo/run-demo.sh end to end", async () => {
   const summary = between(stdout, "== What the repository now remembers", "Demo repository:");
   expect(summary).toMatch(/✓ \d+ records valid/);
   expect(summary).toContain("✓ No problems found");
-  expect(summary).toContain("Aletheic task `task-invalidate-sessions-after-password-reset`: done");
+  expect(summary).toContain("Alethic task `task-invalidate-sessions-after-password-reset`: done");
   expect(summary).toContain("- Passed: `node --test` (exit 0)");
   for (const author of ["maintainer", "codex", "claude-code", "gemini"]) {
     expect(summary).toContain(` ${author}: `);

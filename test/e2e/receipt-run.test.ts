@@ -192,7 +192,7 @@ describe("imported receipts", () => {
     );
     expect(receipt(repo, "rcpt-told").provenance).toEqual({ source: "local", capture: "imported" });
     const clean = await checkLine(repo, "rcpt-told");
-    expect(clean).toContain("(HEAD; reported to Aletheic, not observed)");
+    expect(clean).toContain("(HEAD; reported to Alethic, not observed)");
     expect(clean).not.toContain("observed by");
 
     repo.write("apps/api/auth/refresh.ts", "export function refresh() { return 1; }\n");

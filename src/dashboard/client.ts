@@ -476,7 +476,7 @@ export function clientMain(): void {
         "div",
         { class: "brand" },
         h("span", { class: "logo", "aria-hidden": "true" }),
-        h("span", { class: "brand-name" }, "Aletheic"),
+        h("span", { class: "brand-name" }, "Alethic"),
         model?.repository.project
           ? h("span", { class: "project" }, model.repository.project)
           : null,
@@ -2224,7 +2224,7 @@ export function clientMain(): void {
             receipt
               ? receipt.observed
                 ? `Observed by \`alethic receipt run\`${receipt.coverage ? `; coverage ${receipt.coverage}` : ""}`
-                : "Reported to Aletheic; not observed"
+                : "Reported to Alethic; not observed"
               : undefined,
           ),
           fact(

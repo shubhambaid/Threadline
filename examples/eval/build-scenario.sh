@@ -5,7 +5,7 @@
 #
 # Scenarios: failed-approach, changed-evidence, conflicting-decisions, expired-ownership,
 # incomplete-checks.
-# Conditions: aletheic (records and the instruction block), handoff-file (the same facts written
+# Conditions: alethic (records and the instruction block), handoff-file (the same facts written
 # in HANDOFF.md), git-only (repository instructions and commit history only).
 #
 # Every condition gets the same code, the same commits, and the same prompt; only what the
@@ -15,7 +15,7 @@
 #   SCORING.md     the evaluator's checklist (never shown to the agent)
 #   scenario.json  scenario, condition, and task id
 #
-# The Aletheic command is ALETHIC_BIN if set, else `alethic` on PATH, else this checkout's
+# The Alethic command is ALETHIC_BIN if set, else `alethic` on PATH, else this checkout's
 # dist/cli.js. test/e2e/eval-scenarios.test.ts builds every scenario, so the script cannot rot.
 set -euo pipefail
 
@@ -27,14 +27,14 @@ CONDITION="${2:-}"
 case "$SCENARIO" in
 failed-approach | changed-evidence | conflicting-decisions | expired-ownership | incomplete-checks) ;;
 *)
-  echo "usage: $0 <failed-approach|changed-evidence|conflicting-decisions|expired-ownership|incomplete-checks> <aletheic|handoff-file|git-only> [out-dir]" >&2
+  echo "usage: $0 <failed-approach|changed-evidence|conflicting-decisions|expired-ownership|incomplete-checks> <alethic|handoff-file|git-only> [out-dir]" >&2
   exit 2
   ;;
 esac
 case "$CONDITION" in
-aletheic | handoff-file | git-only) ;;
+alethic | handoff-file | git-only) ;;
 *)
-  echo "unknown condition: $CONDITION (aletheic, handoff-file, or git-only)" >&2
+  echo "unknown condition: $CONDITION (alethic, handoff-file, or git-only)" >&2
   exit 2
   ;;
 esac
@@ -49,7 +49,7 @@ elif command -v alethic >/dev/null 2>&1; then
 elif [[ -f "$REPO_ROOT/dist/cli.js" ]]; then
   TL=(node "$REPO_ROOT/dist/cli.js")
 else
-  echo "Aletheic is not built. Run \`npm run build\`, or set ALETHIC_BIN." >&2
+  echo "Alethic is not built. Run \`npm run build\`, or set ALETHIC_BIN." >&2
   exit 2
 fi
 
@@ -65,9 +65,9 @@ commit() {
     git commit -q --allow-empty -m "$1"
 }
 
-# Aletheic commands run only in the aletheic condition.
+# Alethic commands run only in the alethic condition.
 al() {
-  [[ "$CONDITION" == aletheic ]] || return 0
+  [[ "$CONDITION" == alethic ]] || return 0
   ALETHIC_AGENT="$AGENT" ALETHIC_SESSION="$AGENT-previous" ALETHIC_NOW="$NOW" "${TL[@]}" "$@" >/dev/null
 }
 
@@ -211,7 +211,7 @@ expired-ownership)
   # The task stays active: codex's lease ran out at 13:10 and nobody renewed or released it.
   PROMPT="Continue the work on showing when a user last reset their password. Finish with \`node --test\` passing."
   SCORING=(
-    "Found that codex's claim had expired and took the task over properly (with Aletheic: \`alethic task claim\`, which needs no --force for an expired lease), rather than working alongside an apparently active owner or stopping to wait."
+    "Found that codex's claim had expired and took the task over properly (with Alethic: \`alethic task claim\`, which needs no --force for an expired lease), rather than working alongside an apparently active owner or stopping to wait."
     "Continued from the recorded next step instead of re-investigating."
     "Added lastPasswordReset(userId) with a test."
     "Left \`node --test\` passing."

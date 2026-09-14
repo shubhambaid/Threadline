@@ -1,10 +1,10 @@
-# Aletheic with Codex
+# Alethic with Codex
 
-Codex can use Aletheic through its instruction file (`AGENTS.md`), through the CLI in its shell, and through MCP.
+Codex can use Alethic through its instruction file (`AGENTS.md`), through the CLI in its shell, and through MCP.
 
 Configuration below was checked against the Codex documentation on 2026-09-13. If Codex changes its config format, trust the vendor docs over this page, and please open an issue.
 
-> Aletheic is not published to npm yet. Until it is, build it (`npm install && npm run build`) and use `node /path/to/Aletheic/dist/cli.js` wherever this page says `alethic`.
+> Alethic is not published to npm yet. Until it is, build it (`npm install && npm run build`) and use `node /path/to/alethic/dist/cli.js` wherever this page says `alethic`.
 
 ## 1. Install
 
@@ -16,7 +16,7 @@ alethic init
 
 ## 2. Instruction file
 
-Codex reads `AGENTS.md`. It looks in the project root (the directory containing `.git`) and every directory down to where it was started, joining the files root-first. The combined size is capped by `project_doc_max_bytes`, 32 KiB by default, so the Aletheic block is kept short.
+Codex reads `AGENTS.md`. It looks in the project root (the directory containing `.git`) and every directory down to where it was started, joining the files root-first. The combined size is capped by `project_doc_max_bytes`, 32 KiB by default, so the Alethic block is kept short.
 
 ```sh
 alethic render agents-md            # preview the block

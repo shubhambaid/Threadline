@@ -57,7 +57,7 @@ describe("alethic show", () => {
       ),
     );
     const text = expectOk(await cli(["show", "rcpt-t"], { cwd: repo.root })).stdout;
-    expect(text).toContain("Applies:   HEAD; reported to Aletheic, not observed");
+    expect(text).toContain("Applies:   HEAD; reported to Alethic, not observed");
   });
 
   it("refuses records that failed validation, without printing them", async () => {

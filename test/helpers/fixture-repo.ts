@@ -50,7 +50,7 @@ export async function createRepo(): Promise<FixtureRepo> {
   };
   await repo.run(["init", "--quiet", "--initial-branch=main"]);
   for (const [key, value] of [
-    ["user.name", "Aletheic Tests"],
+    ["user.name", "Alethic Tests"],
     ["user.email", "tests@alethic.invalid"],
     ["commit.gpgsign", "false"],
     ["tag.gpgsign", "false"],

@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Create a sample repository with Aletheic state
+      - name: Create a sample repository with Alethic state
         run: |
           npm ci
           npm run build

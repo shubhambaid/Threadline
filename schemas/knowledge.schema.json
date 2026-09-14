@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:alethic:v1:knowledge",
-  "title": "Aletheic knowledge",
+  "title": "Alethic knowledge",
   "type": "object",
   "allOf": [{ "$ref": "urn:alethic:v1:common#/$defs/envelope" }],
   "required": ["body", "category"],

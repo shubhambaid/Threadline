@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/shubhambaid/Aletheic.git"
+    "url": "git+ssh://git@github.com/shubhambaid/alethic.git"
   },
   "bin": {
     "alethic": "dist/cli.js"

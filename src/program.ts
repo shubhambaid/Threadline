@@ -55,7 +55,7 @@ function withEvidenceOptions(command: Command): Command {
 }
 
 /**
- * Runs the Aletheic CLI and resolves to its exit code:
+ * Runs the Alethic CLI and resolves to its exit code:
  * 0 success, 1 validation errors, 2 usage or environment problems.
  */
 export async function runCli(argv: readonly string[], io: Io): Promise<number> {
@@ -64,7 +64,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .name("alethic")
     .description("Verifiable context for coding agents.")
     .version(pkg.version, "-v, --version")
-    .option("-C, --cwd <dir>", "run as if Aletheic was started in <dir>")
+    .option("-C, --cwd <dir>", "run as if Alethic was started in <dir>")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => io.stdout(text),
@@ -258,7 +258,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   withWriteOptions(
     receipt
       .command("add")
-      .description("Record the result of a check that already ran (Aletheic does not run it)")
+      .description("Record the result of a check that already ran (Alethic does not run it)")
       .requiredOption("--command <command>", "the command that ran, e.g. 'pnpm test auth'")
       .requiredOption("--exit-code <n>", "its exit code")
       .option("--result <result>", "pass, fail, or error (default: from the exit code)")
@@ -420,7 +420,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
 
   program
     .command("mcp")
-    .description("Serve Aletheic tools and resources over MCP (stdio)")
+    .description("Serve Alethic tools and resources over MCP (stdio)")
     .action(async (_options, command: Command) => {
       // Claude Code tells project servers where the project is; an explicit -C still wins.
       const { cwd } = command.optsWithGlobals<{ cwd?: string }>();

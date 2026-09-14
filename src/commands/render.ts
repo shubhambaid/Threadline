@@ -27,8 +27,8 @@ export interface RenderOptions {
 
 const WROTE: Record<Exclude<BlockAction, "unchanged">, string> = {
   created: "Created",
-  inserted: "Added the Aletheic block to",
-  updated: "Updated the Aletheic block in",
+  inserted: "Added the Alethic block to",
+  updated: "Updated the Alethic block in",
 };
 
 const WOULD: Record<Exclude<BlockAction, "unchanged">, string> = {
@@ -72,7 +72,7 @@ export async function renderCommand(io: Io, kind: string, options: RenderOptions
       const agents = agentsReal ? await readOptional(agentsReal) : undefined;
       if (agents !== undefined && hasBlock(agents)) {
         io.stdout(
-          `${file} imports AGENTS.md, which already has the Aletheic block. Nothing to change.\n`,
+          `${file} imports AGENTS.md, which already has the Alethic block. Nothing to change.\n`,
         );
         return 0;
       }

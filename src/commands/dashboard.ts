@@ -48,7 +48,7 @@ export async function dashboardCommand(io: Io, options: DashboardOptions): Promi
     throw error;
   }
   io.stdout(
-    `Aletheic dashboard: ${server.url}\nRead-only, and reachable only from this machine. Press Ctrl+C to stop.\n`,
+    `Alethic dashboard: ${server.url}\nRead-only, and reachable only from this machine. Press Ctrl+C to stop.\n`,
   );
   await new Promise<void>((resolve) => {
     process.once("SIGINT", resolve);

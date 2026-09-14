@@ -20,7 +20,7 @@ export async function initializedRepo(files = APP_FILES): Promise<FixtureRepo> {
   await repo.commitAll("initial");
   const result = await cli(["init", "--name", "workspace"], { cwd: repo.root });
   if (result.code !== 0) throw new Error(`init failed: ${result.stderr}`);
-  await repo.commitAll("Initialize Aletheic");
+  await repo.commitAll("Initialize Alethic");
   return repo;
 }
 

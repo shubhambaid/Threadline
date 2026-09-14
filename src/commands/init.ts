@@ -43,16 +43,16 @@ export async function initCommand(io: Io, options: InitOptions): Promise<number>
   });
 
   if (created.length === 0) {
-    io.stdout("Aletheic is already initialized. Nothing to do.\n");
+    io.stdout("Alethic is already initialized. Nothing to do.\n");
     return 0;
   }
   io.stdout(
     [
-      `Initialized Aletheic in ${ALETHIC_DIR}/`,
+      `Initialized Alethic in ${ALETHIC_DIR}/`,
       ...created.map((file) => `  created ${file}`),
       "",
       "Next, commit it:",
-      `  git add ${ALETHIC_DIR} && git commit -m "Initialize Aletheic"`,
+      `  git add ${ALETHIC_DIR} && git commit -m "Initialize Alethic"`,
       "",
     ].join("\n"),
   );

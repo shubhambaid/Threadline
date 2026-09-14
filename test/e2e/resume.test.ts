@@ -191,7 +191,7 @@ describe("alethic resume", () => {
         env: { ALETHIC_NOW: RESUME_NOW },
       }),
     );
-    expect(inferred.stdout).toContain(`# Aletheic briefing: ${RESUME_TASK}`);
+    expect(inferred.stdout).toContain(`# Alethic briefing: ${RESUME_TASK}`);
 
     const empty = await initializedRepo();
     const none = await cli(["resume"], { cwd: empty.root });

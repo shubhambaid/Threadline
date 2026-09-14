@@ -217,7 +217,7 @@ export const TOOLS: readonly ToolSpec[] = [
     name: "receipt_record",
     title: "Record a check result",
     description:
-      "Record the result of a command that already ran (tests, lint, build). Aletheic does not run it. The output tail is redacted and truncated; the confidence is agent-reported.",
+      "Record the result of a command that already ran (tests, lint, build). Alethic does not run it. The output tail is redacted and truncated; the confidence is agent-reported.",
     inputSchema: object(
       {
         command: text("the command that ran, e.g. pnpm test auth", 1000),

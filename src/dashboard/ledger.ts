@@ -56,7 +56,7 @@ export type NodeType = RecordKind | "session" | "commit" | "file";
 /**
  * How an edge is known (docs/dashboard.md). `explicit`: a field in a record states it.
  * `inferred`: derived from paths or from the order of recorded work. `delivered`: a recorded
- * briefing delivery; Aletheic does not record deliveries yet, so no edge has this basis.
+ * briefing delivery; Alethic does not record deliveries yet, so no edge has this basis.
  */
 export type EdgeBasis = "explicit" | "inferred" | "delivered";
 
@@ -175,7 +175,7 @@ const MAX_INFERRED_PER_TASK = 500;
 const VIEW_NOTE =
   "Records and files as they are in this working tree now, including uncommitted changes. Historical views of earlier commits are not available yet.";
 const DELIVERY_NOTE =
-  "Aletheic does not record which briefing an agent received, so no relationship here claims that an agent read or used a record. Handoffs are inferred from the order of recorded work.";
+  "Alethic does not record which briefing an agent received, so no relationship here claims that an agent read or used a record. Handoffs are inferred from the order of recorded work.";
 
 const GROUPS: Record<string, HealthGroup> = {
   "needs-reverification": "freshness",

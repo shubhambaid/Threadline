@@ -68,7 +68,7 @@ export interface McpSession {
   close(): Promise<void>;
 }
 
-/** Connects an MCP client to an Aletheic server for `root`, acting as `agent` at time `at`. */
+/** Connects an MCP client to an Alethic server for `root`, acting as `agent` at time `at`. */
 export async function connectMcp(root: string, agent: string, at = TEST_NOW): Promise<McpSession> {
   const client = new Client({ name: "alethic-test", version: "0.0.0" });
   await client.connect(
