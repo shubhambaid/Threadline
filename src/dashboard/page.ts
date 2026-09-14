@@ -301,9 +301,6 @@ table { border-collapse: collapse; width: 100%; }
   display: grid; grid-template-columns: 70px 1fr; gap: 10px; padding: 10px 12px; border-radius: var(--radius);
   background: var(--panel); border: 1px solid var(--border);
 }
-.finding-error { border-left: 3px solid var(--error); }
-.finding-warning { border-left: 3px solid var(--warn); }
-.finding-info { border-left: 3px solid var(--info); }
 .severity { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
 .severity-error { color: var(--error); }
 .severity-warning { color: var(--warn); }
