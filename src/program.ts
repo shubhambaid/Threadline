@@ -175,12 +175,16 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       decision
         .command("add")
         .description("Record what was chosen, why, and what was rejected")
-        .requiredOption(
+        .option(
           "--topic <key>",
-          "dotted key for what is decided, e.g. auth.session-invalidation",
+          "dotted key for what is decided, e.g. auth.session-invalidation (required)",
         )
-        .requiredOption("--chosen <text>", "what was chosen")
-        .requiredOption("--rationale <text>", "why it was chosen")
+        .option("--chosen <text>", "what was chosen (required)")
+        .option("--rationale <text>", "why it was chosen (required)")
+        .option(
+          "--from-file <path>",
+          "read fields from a YAML or JSON file, or - for stdin; flags add to or override it",
+        )
         .option("--summary <text>", "one-line summary (default: the chosen option)")
         .option(
           "--alternative <option::reason>",
@@ -218,8 +222,15 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       knowledge
         .command("add")
         .description("Record an architectural or operational fact")
-        .requiredOption("--category <category>", "architecture, operations, convention, or gotcha")
-        .requiredOption("--body <text>", "the fact, with enough detail to act on")
+        .option(
+          "--category <category>",
+          "architecture, operations, convention, or gotcha (required)",
+        )
+        .option("--body <text>", "the fact, with enough detail to act on (required)")
+        .option(
+          "--from-file <path>",
+          "read fields from a YAML or JSON file, or - for stdin; flags add to or override it",
+        )
         .option("--summary <text>", "one-line summary (default: the body)")
         .option("--paths <globs...>", "repository paths or globs the fact is about")
         .option("--link <id>", "related record (repeatable)", collect, [])
@@ -303,7 +314,11 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       .option("--link <id>", "related record (repeatable)", collect, [])
       .option("--summary <text>", "one-line summary")
       .option("--human <name>", "a named human reviewed the checkpoint (human-confirmed)")
-      .option("--id <id>", "record id (default: derived from the task and time)"),
+      .option("--id <id>", "record id (default: derived from the task and time)")
+      .option(
+        "--from-file <path>",
+        "read fields from a YAML or JSON file, or - for stdin; flags add to or override it",
+      ),
   ).action(async (options, command: Command) => {
     exitCode = await checkpointCreateCommand(ioFor(command), options);
   });

@@ -64,6 +64,28 @@ Every command that writes a record:
 
 Repeatable options (`--done`, `--failed`, `--question`, `--alternative`, `--link`, `--receipt`, `--evidence-file`, `--commit`, `--check`, `--issue`, `--pr`, `--supersedes`) may be given more than once. `--paths` takes one or more values.
 
+**Input from a file.** `checkpoint create`, `decision add`, and `knowledge add` accept `--from-file <path>`, or `--from-file -` for stdin, with the fields as YAML or JSON, so an agent can write a structured record without quoting many flags:
+
+```console
+$ alethic checkpoint create --from-file - <<'EOF'
+task: task-session-reset
+done: [Added token_version]
+failed_approaches:
+  - approach: Delete session rows
+    why_failed: The refresh cache still serves them
+open_questions: [Revoke API keys too?]
+next_safe_action: Compare token_version in refresh.ts
+EOF
+```
+
+| Command | Fields |
+|---|---|
+| `checkpoint create` | `task`, `summary`, `done`, `failed_approaches` (`approach`, `why_failed`), `open_questions`, `next_safe_action`, `receipts`, `links` |
+| `decision add` | `id`, `topic`, `chosen`, `rationale`, `summary`, `status`, `alternatives` (`option`, `rejected_because`), `paths`, `links`, `supersedes`, `evidence` (`files`, `commits`, `checks`, `receipts`, `issues`, `prs`) |
+| `knowledge add` | `id`, `category`, `body`, `summary`, `paths`, `links`, `evidence` |
+
+Flags given alongside the file override its single values and add to its lists. Unknown fields are refused, and so are fields that set trust or identity (`confidence`, `human`, `created_by`, `owner`, `anchor`, `valid_at`): those come only from flags and the environment. The record goes through the same validation and secret scan as flags.
+
 ## `alethic init`
 
 Creates `.alethic/` in the current Git repository:

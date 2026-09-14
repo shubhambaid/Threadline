@@ -1,5 +1,6 @@
 import { UsageError } from "../core/errors.js";
 import { makeId } from "../core/ids.js";
+import { type FieldSpec, merge, pick, readInputFile } from "../core/input.js";
 import { loadRecordIndex } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
@@ -24,9 +25,9 @@ import { type StatusUpdateOptions, updateRecordCommand } from "./update.js";
 export const DECISION_STATUSES = ["proposed", "accepted", "superseded"] as const;
 
 export interface DecisionAddOptions extends CommonWriteOptions, EvidenceFlags {
-  topic: string;
-  chosen: string;
-  rationale: string;
+  topic?: string;
+  chosen?: string;
+  rationale?: string;
   summary?: string;
   alternative?: string[];
   status?: string;
@@ -36,9 +37,65 @@ export interface DecisionAddOptions extends CommonWriteOptions, EvidenceFlags {
   human?: string;
   id?: string;
   maxFingerprints?: string;
+  fromFile?: string;
 }
 
-export async function decisionAddCommand(io: Io, options: DecisionAddOptions): Promise<number> {
+const DECISION_FIELDS: FieldSpec = {
+  id: "string",
+  topic: "string",
+  chosen: "string",
+  rationale: "string",
+  summary: "string",
+  status: "string",
+  alternatives: { pairs: ["option", "rejected_because"] },
+  paths: "strings",
+  links: "strings",
+  supersedes: "strings",
+  evidence: "evidence",
+};
+
+/** Fields from `--from-file`, merged under the flags: flags override strings and add to lists. */
+export async function decisionOptions(
+  io: Io,
+  options: DecisionAddOptions,
+): Promise<DecisionAddOptions & { topic: string; chosen: string; rationale: string }> {
+  const input = options.fromFile
+    ? await readInputFile(io, options.fromFile, DECISION_FIELDS)
+    : undefined;
+  const alternatives = (input?.pairs.alternatives ?? []).map(([option, because]) => {
+    if (option.includes("::")) throw new UsageError('alternatives[].option must not contain "::"');
+    return `${option}::${because}`;
+  });
+  const evidence = input?.evidence ?? {};
+  const merged = {
+    ...options,
+    id: pick(options.id, input, "id"),
+    topic: pick(options.topic, input, "topic"),
+    chosen: pick(options.chosen, input, "chosen"),
+    rationale: pick(options.rationale, input, "rationale"),
+    summary: pick(options.summary, input, "summary"),
+    status: pick(options.status, input, "status"),
+    alternative: [...alternatives, ...(options.alternative ?? [])],
+    paths: merge(options.paths, input, "paths"),
+    link: merge(options.link, input, "links"),
+    supersedes: merge(options.supersedes, input, "supersedes"),
+    evidenceFile: [...(evidence.files ?? []), ...(options.evidenceFile ?? [])],
+    commit: [...(evidence.commits ?? []), ...(options.commit ?? [])],
+    check: [...(evidence.checks ?? []), ...(options.check ?? [])],
+    receipt: [...(evidence.receipts ?? []), ...(options.receipt ?? [])],
+    issue: [...(evidence.issues ?? []), ...(options.issue ?? [])],
+    pr: [...(evidence.prs ?? []), ...(options.pr ?? [])],
+  };
+  for (const field of ["topic", "chosen", "rationale"] as const) {
+    if (!merged[field]) {
+      throw new UsageError(`--${field} is required (or ${field} in --from-file).`);
+    }
+  }
+  return merged as DecisionAddOptions & { topic: string; chosen: string; rationale: string };
+}
+
+export async function decisionAddCommand(io: Io, flags: DecisionAddOptions): Promise<number> {
+  const options = await decisionOptions(io, flags);
   const status = options.status ?? "accepted";
   if (!(DECISION_STATUSES as readonly string[]).includes(status)) {
     throw new UsageError(`--status must be one of: ${DECISION_STATUSES.join(", ")}`);

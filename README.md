@@ -120,6 +120,7 @@ Full reference: [docs/cli.md](docs/cli.md).
 - [Why not just AGENTS.md?](docs/why-not-agents-md.md)
 - [How Aletheic compares](docs/comparison.md)
 - [Briefing performance on large ledgers](docs/performance.md)
+- [Evaluating handoffs in real agent sessions](docs/evaluation.md): the protocol, and what has not been verified yet
 - [Roadmap](ROADMAP.md) and [contributing](CONTRIBUTING.md)
 
 ## Status

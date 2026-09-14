@@ -1,5 +1,6 @@
 import { UsageError } from "../core/errors.js";
 import { makeId } from "../core/ids.js";
+import { type FieldSpec, merge, pick, readInputFile } from "../core/input.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import { checkRepoPath, scopeMatcher } from "../core/paths.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
@@ -75,12 +76,51 @@ export interface CheckpointCreateOptions extends CommonWriteOptions {
   human?: string;
   id?: string;
   maxFingerprints?: string;
+  fromFile?: string;
+}
+
+const CHECKPOINT_FIELDS: FieldSpec = {
+  task: "string",
+  summary: "string",
+  done: "strings",
+  failed_approaches: { pairs: ["approach", "why_failed"] },
+  open_questions: "strings",
+  next_safe_action: "string",
+  receipts: "strings",
+  links: "strings",
+};
+
+/** Fields from `--from-file`, merged under the flags: flags override strings and add to lists. */
+async function withInputFile(
+  io: Io,
+  options: CheckpointCreateOptions,
+): Promise<CheckpointCreateOptions> {
+  if (!options.fromFile) return options;
+  const input = await readInputFile(io, options.fromFile, CHECKPOINT_FIELDS);
+  const failed = (input.pairs.failed_approaches ?? []).map(([approach, why]) => {
+    if (approach.includes("::")) {
+      throw new UsageError('failed_approaches[].approach must not contain "::"');
+    }
+    return `${approach}::${why}`;
+  });
+  return {
+    ...options,
+    task: pick(options.task, input, "task"),
+    summary: pick(options.summary, input, "summary"),
+    next: pick(options.next, input, "next_safe_action"),
+    done: merge(options.done, input, "done"),
+    failed: [...failed, ...(options.failed ?? [])],
+    question: merge(options.question, input, "open_questions"),
+    receipt: merge(options.receipt, input, "receipts"),
+    link: merge(options.link, input, "links"),
+  };
 }
 
 export async function checkpointCreateCommand(
   io: Io,
-  options: CheckpointCreateOptions,
+  flags: CheckpointCreateOptions,
 ): Promise<number> {
+  const options = await withInputFile(io, flags);
   const root = await requireInitialized(io);
   const ctx = await openWriteContext(root, options.agent, io.env);
   const index = await loadRecordIndex(root);

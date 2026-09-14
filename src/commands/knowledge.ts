@@ -1,5 +1,6 @@
 import { UsageError } from "../core/errors.js";
 import { makeId } from "../core/ids.js";
+import { type FieldSpec, merge, pick, readInputFile } from "../core/input.js";
 import { loadRecordIndex } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
@@ -24,17 +25,61 @@ export const KNOWLEDGE_CATEGORIES = ["architecture", "operations", "convention",
 export const KNOWLEDGE_STATUSES = ["active", "deprecated"] as const;
 
 export interface KnowledgeAddOptions extends CommonWriteOptions, EvidenceFlags {
-  body: string;
-  category: string;
+  body?: string;
+  category?: string;
   summary?: string;
   paths?: string[];
   link?: string[];
   human?: string;
   id?: string;
   maxFingerprints?: string;
+  fromFile?: string;
 }
 
-export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions): Promise<number> {
+const KNOWLEDGE_FIELDS: FieldSpec = {
+  id: "string",
+  category: "string",
+  body: "string",
+  summary: "string",
+  paths: "strings",
+  links: "strings",
+  evidence: "evidence",
+};
+
+/** Fields from `--from-file`, merged under the flags: flags override strings and add to lists. */
+async function knowledgeOptions(
+  io: Io,
+  options: KnowledgeAddOptions,
+): Promise<KnowledgeAddOptions & { body: string; category: string }> {
+  const input = options.fromFile
+    ? await readInputFile(io, options.fromFile, KNOWLEDGE_FIELDS)
+    : undefined;
+  const evidence = input?.evidence ?? {};
+  const merged = {
+    ...options,
+    id: pick(options.id, input, "id"),
+    category: pick(options.category, input, "category"),
+    body: pick(options.body, input, "body"),
+    summary: pick(options.summary, input, "summary"),
+    paths: merge(options.paths, input, "paths"),
+    link: merge(options.link, input, "links"),
+    evidenceFile: [...(evidence.files ?? []), ...(options.evidenceFile ?? [])],
+    commit: [...(evidence.commits ?? []), ...(options.commit ?? [])],
+    check: [...(evidence.checks ?? []), ...(options.check ?? [])],
+    receipt: [...(evidence.receipts ?? []), ...(options.receipt ?? [])],
+    issue: [...(evidence.issues ?? []), ...(options.issue ?? [])],
+    pr: [...(evidence.prs ?? []), ...(options.pr ?? [])],
+  };
+  for (const field of ["category", "body"] as const) {
+    if (!merged[field]) {
+      throw new UsageError(`--${field} is required (or ${field} in --from-file).`);
+    }
+  }
+  return merged as KnowledgeAddOptions & { body: string; category: string };
+}
+
+export async function knowledgeAddCommand(io: Io, flags: KnowledgeAddOptions): Promise<number> {
+  const options = await knowledgeOptions(io, flags);
   if (!(KNOWLEDGE_CATEGORIES as readonly string[]).includes(options.category)) {
     throw new UsageError(`--category must be one of: ${KNOWLEDGE_CATEGORIES.join(", ")}`);
   }
