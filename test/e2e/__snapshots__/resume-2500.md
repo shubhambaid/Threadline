@@ -1,0 +1,57 @@
+# Threadline briefing: task-invalidate-sessions-after-password-reset
+
+> Compiled by `threadline resume` for Claude Code. Budget: about 2500 tokens, estimated as characters / 4. Every bullet cites its source; ⚠ marks claims that are unverified or may be stale.
+
+## Goal
+- After a password reset, every session and refresh token issued before the reset must stop working within one request, so a stolen session cannot outlive a reset. [task-invalidate-sessions-after-password-reset] ⚠ unverified
+- Status: active; owner claude-code, lease until 2026-09-13T22:12:00Z. [task-invalidate-sessions-after-password-reset]
+
+## Current repository state
+- Branch feat/session-reset at <sha>, clean; 2 paths changed since <sha>. (commit <sha>)
+- Latest checkpoint was written by claude-code at 2026-09-13T18:33:00Z on feat/session-reset at <sha>; HEAD is 1 commit ahead of it, with no code changes since. [cp-invalidate-sessions-after-password-reset-20260913t183300z]
+
+## Relevant architecture and decisions
+- Proposed: Rotate refresh tokens on every use. Why: The rotation approach keeps revocation to a single write per user. The rotation approach avoids scanning shared caches in production. The rotation approach stays testable with the in-memory store the auth suite already uses. [dec-auth-token-rotation] ⚠ may be stale: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored ⚠ unverified
+- apps/api/auth/refresh.ts reads refresh sessions from Redis (key auth:rt:<id>, TTL 900s) before falling back to Postgres, so revocation must also outvote the cached entry. [kn-refresh-tokens-are-cached-in-redis-for-15-minutes] ⚠ may be stale: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored ⚠ unverified
+- Tell users that other devices were signed out. Why: Users should know why they must sign in again. [dec-web-login-copy] ⚠ unverified
+- Store token_version on users and reject tokens with an older version. Why: The token version approach keeps revocation to a single write per user. The token version approach avoids scanning shared caches in production. The token version approach stays testable with the in-memory store the auth suite already uses. The token version approach composes with the existing session middleware without new dependencies. The token version approach lets operators reason about it from the users table alone. The token version approach only needs the migration reverted to roll back. Rejected: Delete all session rows on reset (Cached refresh tokens stay valid for 15 minutes); Scan and evict Redis keys per user (Keys are not indexed by user). [dec-auth-session-invalidation]
+- Use the documented approach for admin override. Why: The admin override approach keeps revocation to a single write per user. The admin override approach avoids scanning shared caches in production. The admin override approach stays testable with the in-memory store the auth suite already uses. The admin override approach composes with the existing session middleware without new dependencies. The admin override approach lets operators reason about it from the users table alone. The admin override approach only needs the migration reverted to roll back. Rejected: Custom admin override handling (More code to maintain and test). [dec-auth-admin-override] ⚠ unverified
+- Use the documented approach for email notice. Why: The email notice approach keeps revocation to a single write per user. The email notice approach avoids scanning shared caches in production. The email notice approach stays testable with the in-memory store the auth suite already uses. The email notice approach composes with the existing session middleware without new dependencies. The email notice approach lets operators reason about it from the users table alone. The email notice approach only needs the migration reverted to roll back. Rejected: Custom email notice handling (More code to maintain and test). [dec-auth-email-notice] ⚠ unverified
+- Use the documented approach for device list. Why: The device list approach keeps revocation to a single write per user. The device list approach avoids scanning shared caches in production. The device list approach stays testable with the in-memory store the auth suite already uses. The device list approach composes with the existing session middleware without new dependencies. The device list approach lets operators reason about it from the users table alone. The device list approach only needs the migration reverted to roll back. Rejected: Custom device list handling (More code to maintain and test). [dec-auth-device-list] ⚠ unverified
+- Use the documented approach for csrf tokens. Why: The csrf tokens approach keeps revocation to a single write per user. The csrf tokens approach avoids scanning shared caches in production. The csrf tokens approach stays testable with the in-memory store the auth suite already uses. The csrf tokens approach composes with the existing session middleware without new dependencies. The csrf tokens approach lets operators reason about it from the users table alone. The csrf tokens approach only needs the migration reverted to roll back. Rejected: Custom csrf tokens handling (More code to maintain and test). [dec-auth-csrf-tokens] ⚠ unverified
+- Use the documented approach for cookie flags. Why: The cookie flags approach keeps revocation to a single write per user. The cookie flags approach avoids scanning shared caches in production. The cookie flags approach stays testable with the in-memory store the auth suite already uses. The cookie flags approach composes with the existing session middleware without new dependencies. The cookie flags approach lets operators reason about it from the users table alone. The cookie flags approach only needs the migration reverted to roll back. Rejected: Custom cookie flags handling (More code to maintain and test). [dec-auth-cookie-flags] ⚠ unverified
+- Use the documented approach for migration order. Why: The migration order approach keeps revocation to a single write per user. The migration order approach avoids scanning shared caches in production. The migration order approach stays testable with the in-memory store the auth suite already uses. The migration order approach composes with the existing session middleware without new dependencies. The migration order approach lets operators reason about it from the users table alone. The migration order approach only needs the migration reverted to roll back. Rejected: Custom migration order handling (More code to maintain and test). [dec-auth-migration-order] ⚠ unverified
+- Use the documented approach for error messages. [dec-auth-error-messages] ⚠ unverified
+- Use the documented approach for audit log. [dec-auth-audit-log] ⚠ unverified
+- Use the documented approach for rate limit. [dec-auth-rate-limit] ⚠ unverified
+- Use the documented approach for password hashing. [dec-auth-password-hashing] ⚠ unverified
+- Use the documented approach for refresh cache. [dec-auth-refresh-cache] ⚠ unverified
+- Use the documented approach for token format. [dec-auth-token-format] ⚠ unverified
+- The auth test suite resets the database before each file. [kn-the-auth-test-suite-resets-the-database-before-each-file] ⚠ unverified
+- Sessions live in the sessions table keyed by user. [kn-sessions-live-in-the-sessions-table-keyed-by-user] ⚠ unverified
+
+## Files changed or likely relevant
+- apps/api/auth/**: task scope [task-invalidate-sessions-after-password-reset]
+- apps/api/auth/password-reset.ts: changed on this branch (commit <sha>)
+- apps/api/auth/refresh.ts: changed on this branch (commit <sha>)
+
+## Verified behavior and checks run
+- `pnpm test auth/refresh` passed at <sha> (code unchanged since), 2026-09-13T18:32:00Z. (receipt rcpt-pnpm-test-auth-refresh-20260913t183200z) ⚠ unverified
+- `pnpm test auth` failed (exit 1) at <sha> (code unchanged since), 2026-09-13T18:31:00Z; output ends: "expected 401, received 200". (receipt rcpt-pnpm-test-auth-20260913t183100z) ⚠ unverified
+- `pnpm lint` passed at <sha> (code has changed since), 2026-09-13T18:09:00Z. (receipt rcpt-pnpm-lint-20260913t180900z) ⚠ unverified
+- `pnpm test auth` failed (exit 1) at <sha> (code has changed since), 2026-09-13T18:08:00Z; output ends: "Tests: 1 failed, 38 passed". (receipt rcpt-pnpm-test-auth-20260913t180800z) ⚠ unverified
+
+## Failed approaches
+- Bump token_version inside the Redis cache entry. Failed because: The cache entry is written before the version check. [cp-invalidate-sessions-after-password-reset-20260913t183300z] ⚠ unverified
+- Delete all session rows on reset. Failed because: Refresh tokens are cached in Redis for 15 minutes. [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
+- Evict Redis keys with SCAN. Failed because: Too slow on the production cache. [cp-invalidate-sessions-after-password-reset-20260913t181000z] ⚠ unverified
+
+## Open questions
+- Does the mobile client retry refresh on 401? [cp-invalidate-sessions-after-password-reset-20260913t183300z]
+- Should the audit log record the reset? [cp-invalidate-sessions-after-password-reset-20260913t183300z]
+
+## Next safe action
+- Invalidate the cached refresh entry when token_version changes, then rerun pnpm test auth. [cp-invalidate-sessions-after-password-reset-20260913t183300z]
+
+---
+Project instructions for Claude Code are in CLAUDE.md. Before stopping, run `threadline checkpoint create`. Before closing the task, run `threadline validate`. Never put secrets, customer data, or chat transcripts in records.

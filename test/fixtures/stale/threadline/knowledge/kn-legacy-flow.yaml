@@ -1,0 +1,18 @@
+id: kn-legacy-flow
+kind: knowledge
+schema_version: 1
+summary: The app boots through legacyFlow in src/legacy.ts.
+status: active
+confidence: agent-reported
+category: architecture
+body: src/app.ts calls legacyFlow() from src/legacy.ts at startup.
+scope:
+  paths:
+    - src/legacy.ts
+evidence:
+  files:
+    - src/legacy.ts
+created_by:
+  agent: codex
+created_at: "2026-09-13T19:00:00Z"
+valid_at: "abcdef1"

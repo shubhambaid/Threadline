@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:threadline:v1:receipt",
+  "title": "Threadline receipt",
+  "type": "object",
+  "allOf": [
+    { "$ref": "urn:threadline:v1:common#/$defs/envelope" },
+    {
+      "if": { "required": ["result"], "properties": { "result": { "const": "pass" } } },
+      "then": { "properties": { "exit_code": { "const": 0 } } }
+    },
+    {
+      "if": { "required": ["result"], "properties": { "result": { "const": "fail" } } },
+      "then": { "properties": { "exit_code": { "not": { "const": 0 } } } }
+    }
+  ],
+  "required": ["command", "exit_code", "result", "git", "ran_at"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^rcpt-" },
+    "kind": { "const": "receipt" },
+    "status": {
+      "description": "Receipts are append-only, so status is always 'recorded'. The outcome lives in 'result'.",
+      "const": "recorded"
+    },
+    "command": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "exit_code": { "type": "integer" },
+    "result": { "enum": ["pass", "fail", "error"] },
+    "ran_at": { "$ref": "urn:threadline:v1:common#/$defs/timestamp" },
+    "duration_ms": { "type": "integer", "minimum": 0 },
+    "git": {
+      "type": "object",
+      "required": ["head", "dirty"],
+      "properties": {
+        "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
+        "head": { "$ref": "urn:threadline:v1:common#/$defs/sha" },
+        "dirty": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "output_tail": {
+      "description": "Last lines of output, truncated and redacted before writing.",
+      "type": "string",
+      "maxLength": 4000
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": { "enum": ["local", "ci-env", "github-attestation"] },
+        "run_url": { "type": "string", "maxLength": 500 },
+        "attestation": { "type": "string", "maxLength": 500 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "unevaluatedProperties": false
+}

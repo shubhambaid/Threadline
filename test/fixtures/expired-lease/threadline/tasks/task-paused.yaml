@@ -1,0 +1,14 @@
+id: task-paused
+kind: task
+schema_version: 1
+summary: Paused task; an old lease here is fine.
+status: paused
+confidence: agent-reported
+intent: Demonstrate that expired leases only matter for active tasks.
+owner:
+  agent: gemini
+  claimed_at: "2026-09-13T15:00:00Z"
+  lease_expires_at: "2026-09-13T19:00:00Z"
+created_by:
+  agent: gemini
+created_at: "2026-09-13T15:00:00Z"

@@ -1,0 +1,11 @@
+id: kn-alias
+kind: knowledge
+schema_version: 1
+summary: &shared Uses YAML anchors and aliases.
+status: active
+confidence: inferred
+category: gotcha
+body: *shared
+created_by:
+  agent: codex
+created_at: "2026-09-13T18:00:00Z"

@@ -1,0 +1,18 @@
+id: rcpt-auth-tests-20260913t200000z
+kind: receipt
+schema_version: 1
+summary: Auth tests fail on the refresh path.
+status: recorded
+confidence: agent-reported
+command: pnpm test auth
+exit_code: 1
+result: fail
+ran_at: "2026-09-13T19:59:00Z"
+git:
+  branch: main
+  head: "{{short:2}}"
+  dirty: false
+output_tail: "expected 401, received 200"
+created_by:
+  agent: codex
+created_at: "2026-09-13T20:00:00Z"

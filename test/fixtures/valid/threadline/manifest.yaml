@@ -1,0 +1,6 @@
+format_version: 1
+project:
+  name: fixture-valid
+defaults:
+  lease_minutes: 240
+  default_branch: main

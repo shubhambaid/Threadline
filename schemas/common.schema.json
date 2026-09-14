@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:threadline:v1:common",
+  "title": "Threadline common definitions",
+  "$defs": {
+    "recordId": {
+      "type": "string",
+      "pattern": "^(task|dec|kn|cp|rcpt)-[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 120
+    },
+    "taskId": { "type": "string", "pattern": "^task-[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 120 },
+    "receiptId": { "type": "string", "pattern": "^rcpt-[a-z0-9]+(-[a-z0-9]+)*$", "maxLength": 120 },
+    "sha": {
+      "description": "Abbreviated or full Git commit id. Quote it in YAML so all-digit shas stay strings.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,64}$"
+    },
+    "objectId": {
+      "description": "Full Git object id (SHA-1 or SHA-256).",
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "timestamp": {
+      "description": "UTC timestamp, RFC 3339, always ending in Z.",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,3})?Z$"
+    },
+    "agentName": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$" },
+    "repoPath": {
+      "description": "Repository-relative POSIX path or glob. No absolute paths, drive letters, backslashes, '.' or '..' segments, or NUL bytes.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?![/~])(?![A-Za-z]:)(?!.*\\\\)(?!(.*/)?\\.\\.?(/|$))(?!.*//)[^\\u0000]+$"
+    },
+    "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "confidence": {
+      "enum": ["inferred", "agent-reported", "ci-reported", "human-confirmed", "ci-verified"]
+    },
+    "createdBy": {
+      "type": "object",
+      "required": ["agent"],
+      "properties": {
+        "agent": { "$ref": "#/$defs/agentName" },
+        "human": { "type": "string", "minLength": 1, "maxLength": 100 }
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "paths": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repoPath" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "humanConfirmation": {
+      "type": "object",
+      "required": ["name", "at"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "at": { "$ref": "#/$defs/timestamp" },
+        "note": { "$ref": "#/$defs/text" }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "commits": { "type": "array", "items": { "$ref": "#/$defs/sha" }, "uniqueItems": true },
+        "files": { "type": "array", "items": { "$ref": "#/$defs/repoPath" }, "uniqueItems": true },
+        "checks": { "type": "array", "items": { "$ref": "#/$defs/text" }, "uniqueItems": true },
+        "receipts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/receiptId" },
+          "uniqueItems": true
+        },
+        "issues": { "type": "array", "items": { "$ref": "#/$defs/text" }, "uniqueItems": true },
+        "prs": { "type": "array", "items": { "$ref": "#/$defs/text" }, "uniqueItems": true },
+        "human": { "type": "array", "items": { "$ref": "#/$defs/humanConfirmation" } }
+      },
+      "additionalProperties": false
+    },
+    "anchor": {
+      "description": "Content fingerprints captured when the record was written; staleness compares these to the current tree.",
+      "type": "object",
+      "required": ["commit", "fingerprints"],
+      "properties": {
+        "commit": { "$ref": "#/$defs/sha" },
+        "fingerprints": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/repoPath" },
+          "additionalProperties": { "$ref": "#/$defs/objectId" }
+        },
+        "overflow": {
+          "description": "Files matched by scope beyond the fingerprint limit, summarized as one digest.",
+          "type": "object",
+          "required": ["count", "digest"],
+          "properties": {
+            "count": { "type": "integer", "minimum": 1 },
+            "digest": { "$ref": "#/$defs/objectId" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "envelope": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "schema_version",
+        "summary",
+        "status",
+        "confidence",
+        "created_by",
+        "created_at"
+      ],
+      "properties": {
+        "id": { "$ref": "#/$defs/recordId" },
+        "kind": { "enum": ["task", "decision", "knowledge", "checkpoint", "receipt"] },
+        "schema_version": { "const": 1 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 280 },
+        "status": { "type": "string" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "created_by": { "$ref": "#/$defs/createdBy" },
+        "created_at": { "$ref": "#/$defs/timestamp" },
+        "updated_at": { "$ref": "#/$defs/timestamp" },
+        "valid_at": { "$ref": "#/$defs/sha" },
+        "anchor": { "$ref": "#/$defs/anchor" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/recordId" }, "uniqueItems": true },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "supersedes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/recordId" },
+          "uniqueItems": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["confidence"],
+            "properties": { "confidence": { "const": "human-confirmed" } }
+          },
+          "then": {
+            "required": ["evidence"],
+            "properties": {
+              "evidence": { "required": ["human"], "properties": { "human": { "minItems": 1 } } }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

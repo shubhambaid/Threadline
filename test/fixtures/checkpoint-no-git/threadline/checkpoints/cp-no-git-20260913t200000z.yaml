@@ -1,0 +1,11 @@
+id: cp-no-git-20260913t200000z
+kind: checkpoint
+schema_version: 1
+summary: A checkpoint with no Git reference.
+status: recorded
+confidence: agent-reported
+task: task-a
+next_safe_action: Nothing is safe without knowing the code state.
+created_by:
+  agent: codex
+created_at: "2026-09-13T20:00:00Z"
