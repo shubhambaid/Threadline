@@ -1,6 +1,6 @@
-# Threadline briefing: task-invalidate-sessions-after-password-reset
+# Aletheic briefing: task-invalidate-sessions-after-password-reset
 
-> Compiled by `threadline resume` for Claude Code. Budget: about 1000 tokens, estimated as characters / 4. Every bullet cites its source; ⚠ marks claims that are unverified or may be stale.
+> Compiled by `alethic resume` for Claude Code. Budget: about 1000 tokens, estimated as characters / 4. Every bullet cites its source; ⚠ marks claims that are unverified or may be stale.
 
 ## Goal
 - After a password reset, every session and refresh token issued before the reset must stop working within one request, so a stolen session cannot outlive a reset. [task-invalidate-sessions-after-password-reset] ⚠ unverified
@@ -42,4 +42,4 @@
 - Invalidate the cached refresh entry when token_version changes, then rerun pnpm test auth. [cp-invalidate-sessions-after-password-reset-20260913t183300z]
 
 ---
-Project instructions for Claude Code are in CLAUDE.md. Before stopping, run `threadline checkpoint create`. Before closing the task, run `threadline validate`. Never put secrets, customer data, or chat transcripts in records.
+Project instructions for Claude Code are in CLAUDE.md. Before stopping, run `alethic checkpoint create`. Before closing the task, run `alethic validate`. Never put secrets, customer data, or chat transcripts in records.

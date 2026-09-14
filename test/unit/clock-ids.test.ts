@@ -7,14 +7,12 @@ const RECORD_ID = new RegExp(common.$defs.recordId.pattern);
 const TIMESTAMP = new RegExp(common.$defs.timestamp.pattern);
 
 describe("clock", () => {
-  it("honors THREADLINE_NOW", () => {
-    expect(toTimestamp(now({ THREADLINE_NOW: "2026-09-13T20:15:00Z" }))).toBe(
-      "2026-09-13T20:15:00Z",
-    );
+  it("honors ALETHIC_NOW", () => {
+    expect(toTimestamp(now({ ALETHIC_NOW: "2026-09-13T20:15:00Z" }))).toBe("2026-09-13T20:15:00Z");
   });
 
-  it("rejects an invalid THREADLINE_NOW", () => {
-    expect(() => now({ THREADLINE_NOW: "yesterday" })).toThrow(/THREADLINE_NOW/);
+  it("rejects an invalid ALETHIC_NOW", () => {
+    expect(() => now({ ALETHIC_NOW: "yesterday" })).toThrow(/ALETHIC_NOW/);
   });
 
   it("formats timestamps the schema accepts", () => {

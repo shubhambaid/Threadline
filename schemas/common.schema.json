@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:common",
-  "title": "Threadline common definitions",
+  "$id": "urn:alethic:v1:common",
+  "title": "Aletheic common definitions",
   "$defs": {
     "recordId": {
       "type": "string",

@@ -4,7 +4,7 @@ import { digestOf } from "../core/anchor.js";
 import { exists } from "../core/fs.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import type { Manifest } from "../core/manifest.js";
-import { checkRepoPath, expandScope, isGlob, scopeMatcher, THREADLINE_DIR } from "../core/paths.js";
+import { ALETHIC_DIR, checkRepoPath, expandScope, isGlob, scopeMatcher } from "../core/paths.js";
 import {
   hashWorkingTreeFiles,
   headCommit,
@@ -58,7 +58,7 @@ export async function createStalenessContext(
     threshold: manifest.staleness.changed_lines_threshold,
     maxGlobMatches: manifest.limits.max_glob_matches,
     excluded: (file) =>
-      file.startsWith(`${THREADLINE_DIR}/`) || checkRepoPath(file) !== undefined || forbidden(file),
+      file.startsWith(`${ALETHIC_DIR}/`) || checkRepoPath(file) !== undefined || forbidden(file),
     blobs: new Map(),
     relations: new Map(),
   };

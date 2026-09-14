@@ -1,10 +1,10 @@
-/** Current time, overridable with THREADLINE_NOW for deterministic tests and demos. */
+/** Current time, overridable with ALETHIC_NOW for deterministic tests and demos. */
 export function now(env: NodeJS.ProcessEnv = process.env): Date {
-  const fixed = env.THREADLINE_NOW;
+  const fixed = env.ALETHIC_NOW;
   if (!fixed) return new Date();
   const date = new Date(fixed);
   if (Number.isNaN(date.getTime())) {
-    throw new Error(`THREADLINE_NOW is not a valid timestamp: ${fixed}`);
+    throw new Error(`ALETHIC_NOW is not a valid timestamp: ${fixed}`);
   }
   return date;
 }

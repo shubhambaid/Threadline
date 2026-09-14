@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:checkpoint",
-  "title": "Threadline checkpoint",
+  "$id": "urn:alethic:v1:checkpoint",
+  "title": "Aletheic checkpoint",
   "type": "object",
-  "allOf": [{ "$ref": "urn:threadline:v1:common#/$defs/envelope" }],
+  "allOf": [{ "$ref": "urn:alethic:v1:common#/$defs/envelope" }],
   "required": ["task", "git", "next_safe_action"],
   "properties": {
     "id": { "type": "string", "pattern": "^cp-" },
@@ -12,45 +12,45 @@
       "description": "Checkpoints are append-only snapshots, so status is always 'recorded'.",
       "const": "recorded"
     },
-    "task": { "$ref": "urn:threadline:v1:common#/$defs/taskId" },
+    "task": { "$ref": "urn:alethic:v1:common#/$defs/taskId" },
     "git": {
       "type": "object",
       "required": ["head", "dirty"],
       "properties": {
         "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
-        "base": { "$ref": "urn:threadline:v1:common#/$defs/sha" },
-        "head": { "$ref": "urn:threadline:v1:common#/$defs/sha" },
+        "base": { "$ref": "urn:alethic:v1:common#/$defs/sha" },
+        "head": { "$ref": "urn:alethic:v1:common#/$defs/sha" },
         "dirty": { "type": "boolean" },
         "changed_paths": {
           "type": "array",
-          "items": { "$ref": "urn:threadline:v1:common#/$defs/repoPath" },
+          "items": { "$ref": "urn:alethic:v1:common#/$defs/repoPath" },
           "uniqueItems": true
         }
       },
       "additionalProperties": false
     },
-    "done": { "type": "array", "items": { "$ref": "urn:threadline:v1:common#/$defs/text" } },
+    "done": { "type": "array", "items": { "$ref": "urn:alethic:v1:common#/$defs/text" } },
     "failed_approaches": {
       "type": "array",
       "items": {
         "type": "object",
         "required": ["approach", "why_failed"],
         "properties": {
-          "approach": { "$ref": "urn:threadline:v1:common#/$defs/text" },
-          "why_failed": { "$ref": "urn:threadline:v1:common#/$defs/text" },
-          "evidence": { "$ref": "urn:threadline:v1:common#/$defs/evidence" }
+          "approach": { "$ref": "urn:alethic:v1:common#/$defs/text" },
+          "why_failed": { "$ref": "urn:alethic:v1:common#/$defs/text" },
+          "evidence": { "$ref": "urn:alethic:v1:common#/$defs/evidence" }
         },
         "additionalProperties": false
       }
     },
     "open_questions": {
       "type": "array",
-      "items": { "$ref": "urn:threadline:v1:common#/$defs/text" }
+      "items": { "$ref": "urn:alethic:v1:common#/$defs/text" }
     },
-    "next_safe_action": { "$ref": "urn:threadline:v1:common#/$defs/text" },
+    "next_safe_action": { "$ref": "urn:alethic:v1:common#/$defs/text" },
     "receipts": {
       "type": "array",
-      "items": { "$ref": "urn:threadline:v1:common#/$defs/receiptId" },
+      "items": { "$ref": "urn:alethic:v1:common#/$defs/receiptId" },
       "uniqueItems": true
     }
   },

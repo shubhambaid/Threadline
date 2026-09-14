@@ -49,8 +49,8 @@ export function serverIo(root: string, agent: string, at = TEST_NOW): Io {
     env: {
       PATH: process.env.PATH,
       HOME: process.env.HOME,
-      THREADLINE_NOW: at,
-      THREADLINE_AGENT: agent,
+      ALETHIC_NOW: at,
+      ALETHIC_AGENT: agent,
     },
     stdout: () => {},
     stderr: () => {},
@@ -68,9 +68,9 @@ export interface McpSession {
   close(): Promise<void>;
 }
 
-/** Connects an MCP client to a Threadline server for `root`, acting as `agent` at time `at`. */
+/** Connects an MCP client to an Aletheic server for `root`, acting as `agent` at time `at`. */
 export async function connectMcp(root: string, agent: string, at = TEST_NOW): Promise<McpSession> {
-  const client = new Client({ name: "threadline-test", version: "0.0.0" });
+  const client = new Client({ name: "alethic-test", version: "0.0.0" });
   await client.connect(
     new LineTransport(createMcpHandler({ io: serverIo(root, agent, at), run: runCli })),
   );

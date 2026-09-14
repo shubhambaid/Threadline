@@ -182,7 +182,7 @@ describe("assessStaleness", () => {
     const data = await record(repo, { evidenceFiles: ["src/a.ts"] });
     repo.write("src/b.ts", lines(6, "b"));
     await repo.commitAll("later work");
-    const clone = path.join(mkdtempSync(path.join(tmpdir(), "threadline-shallow-")), "clone");
+    const clone = path.join(mkdtempSync(path.join(tmpdir(), "alethic-shallow-")), "clone");
     const cloned = await git(tmpdir(), [
       "clone",
       "-q",

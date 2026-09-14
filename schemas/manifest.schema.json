@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:manifest",
-  "title": "Threadline manifest (.threadline/manifest.yaml)",
+  "$id": "urn:alethic:v1:manifest",
+  "title": "Aletheic manifest (.alethic/manifest.yaml)",
   "type": "object",
   "required": ["format_version", "project"],
   "properties": {
@@ -34,7 +34,7 @@
         "forbidden_globs": {
           "description": "Paths that records must never cite or fingerprint.",
           "type": "array",
-          "items": { "$ref": "urn:threadline:v1:common#/$defs/repoPath" }
+          "items": { "$ref": "urn:alethic:v1:common#/$defs/repoPath" }
         }
       },
       "additionalProperties": false

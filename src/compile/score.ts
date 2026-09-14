@@ -7,7 +7,7 @@ export interface AssessedCandidate extends Candidate {
   staleness: StalenessResult;
   /** Receipts: whether they ran on the current HEAD. */
   atHead?: boolean;
-  /** Receipts: whether files outside .threadline/ changed since they ran; undefined if unknown. */
+  /** Receipts: whether files outside .alethic/ changed since they ran; undefined if unknown. */
   codeChanged?: boolean;
 }
 

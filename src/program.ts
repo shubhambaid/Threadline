@@ -27,7 +27,7 @@ import { verifyCommand } from "./commands/verify.js";
 import { UsageError } from "./core/errors.js";
 import { GitError } from "./git/git.js";
 
-const AGENT_HELP = "agent writing the record (default: $THREADLINE_AGENT)";
+const AGENT_HELP = "agent writing the record (default: $ALETHIC_AGENT)";
 const JSON_HELP = "print a machine-readable result";
 const FINGERPRINT_HELP = "override limits.max_fingerprints_per_record for this record";
 
@@ -53,16 +53,16 @@ function withEvidenceOptions(command: Command): Command {
 }
 
 /**
- * Runs the Threadline CLI and resolves to its exit code:
+ * Runs the Aletheic CLI and resolves to its exit code:
  * 0 success, 1 validation errors, 2 usage or environment problems.
  */
 export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   let exitCode = 0;
   const program = new CommanderProgram()
-    .name("threadline")
-    .description("Shared memory for coding agents, anchored to Git.")
+    .name("alethic")
+    .description("Verifiable context for coding agents.")
     .version(pkg.version, "-v, --version")
-    .option("-C, --cwd <dir>", "run as if Threadline was started in <dir>")
+    .option("-C, --cwd <dir>", "run as if Aletheic was started in <dir>")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => io.stdout(text),
@@ -76,7 +76,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
 
   program
     .command("init")
-    .description("Create .threadline/ in the current Git repository")
+    .description("Create .alethic/ in the current Git repository")
     .option("--name <name>", "project name (default: the repository directory name)")
     .action(async (options, command: Command) => {
       exitCode = await initCommand(ioFor(command), options);
@@ -233,7 +233,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   withWriteOptions(
     receipt
       .command("add")
-      .description("Record the result of a check that already ran (Threadline does not run it)")
+      .description("Record the result of a check that already ran (Aletheic does not run it)")
       .requiredOption("--command <command>", "the command that ran, e.g. 'pnpm test auth'")
       .requiredOption("--exit-code <n>", "its exit code")
       .option("--result <result>", "pass, fail, or error (default: from the exit code)")
@@ -332,7 +332,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       "apply safe fixes: pause tasks with expired leases, retire superseded decisions",
     )
     .option("--strict", "treat missing evidence commits as errors")
-    .option("--agent <name>", "agent applying --fix (default: $THREADLINE_AGENT)")
+    .option("--agent <name>", "agent applying --fix (default: $ALETHIC_AGENT)")
     .option("--json", "print a machine-readable report")
     .action(async (options, command: Command) => {
       exitCode = await doctorCommand(ioFor(command), options);
@@ -352,7 +352,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
 
   program
     .command("mcp")
-    .description("Serve Threadline tools and resources over MCP (stdio)")
+    .description("Serve Aletheic tools and resources over MCP (stdio)")
     .action(async (_options, command: Command) => {
       // Claude Code tells project servers where the project is; an explicit -C still wins.
       const { cwd } = command.optsWithGlobals<{ cwd?: string }>();
@@ -373,7 +373,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       return 2;
     }
     io.stderr(`error: unexpected failure: ${(error as Error).message}\n`);
-    if (io.env.THREADLINE_DEBUG) io.stderr(`${(error as Error).stack}\n`);
+    if (io.env.ALETHIC_DEBUG) io.stderr(`${(error as Error).stack}\n`);
     return 2;
   }
 }

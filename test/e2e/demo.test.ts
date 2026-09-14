@@ -17,7 +17,7 @@ beforeAll(async () => {
   // node_modules/ so the bundle's runtime dependencies (commander, yaml, ajv) still resolve.
   const cache = path.join(ROOT, "node_modules/.cache");
   mkdirSync(cache, { recursive: true });
-  const out = mkdtempSync(path.join(cache, "threadline-demo-build-"));
+  const out = mkdtempSync(path.join(cache, "alethic-demo-build-"));
   await run(path.join(ROOT, "node_modules/.bin/tsup"), ["--out-dir", out], { cwd: ROOT });
   bin = `node ${path.join(out, "cli.js")}`;
   return () => rmSync(out, { recursive: true, force: true });
@@ -31,10 +31,10 @@ function between(text: string, start: string, end: string): string {
 }
 
 it("runs examples/demo/run-demo.sh end to end", async () => {
-  const work = mkdtempSync(path.join(tmpdir(), "threadline-demo-"));
+  const work = mkdtempSync(path.join(tmpdir(), "alethic-demo-"));
   const script = path.join(ROOT, "examples/demo/run-demo.sh");
   const { stdout } = await run("bash", [script, work], {
-    env: { PATH: process.env.PATH, HOME: process.env.HOME, THREADLINE_BIN: bin },
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, ALETHIC_BIN: bin },
     maxBuffer: 10 * 1024 * 1024,
     timeout: 120_000,
   }).catch((error: { stdout?: string; stderr?: string; message: string }) => {
@@ -48,7 +48,7 @@ it("runs examples/demo/run-demo.sh end to end", async () => {
 
   // Claude Code's only context is the briefing compiled from Codex's records.
   const claude = between(stdout, "== Claude Code resumes", "== Gemini resumes");
-  expect(claude).toContain(`# Threadline briefing: ${TASK}`);
+  expect(claude).toContain(`# Aletheic briefing: ${TASK}`);
   expect(claude).toContain(
     "Delete session rows on reset. Failed because: refresh() reads the refresh cache first, so cached sessions keep working.",
   );
@@ -65,15 +65,13 @@ it("runs examples/demo/run-demo.sh end to end", async () => {
   const summary = between(stdout, "== What the repository now remembers", "Demo repository:");
   expect(summary).toMatch(/✓ \d+ records valid/);
   expect(summary).toContain("✓ No problems found");
-  expect(summary).toContain(
-    "Threadline task `task-invalidate-sessions-after-password-reset`: done",
-  );
+  expect(summary).toContain("Aletheic task `task-invalidate-sessions-after-password-reset`: done");
   expect(summary).toContain("- Passed: `node --test` (exit 0)");
   for (const author of ["maintainer", "codex", "claude-code", "gemini"]) {
     expect(summary).toContain(` ${author}: `);
   }
 
-  const receipts = path.join(work, "auth-service/.threadline/receipts");
+  const receipts = path.join(work, "auth-service/.alethic/receipts");
   const agents = readdirSync(receipts)
     .filter((file) => file.endsWith(".yaml"))
     .map((file) => parseYaml(readFileSync(path.join(receipts, file), "utf8")))

@@ -1,6 +1,6 @@
 # Architecture
 
-Threadline is a CLI over a directory of YAML files. Every other surface (the MCP server, instruction blocks, the GitHub Action) goes through the same commands. There is no service, database, or network access.
+Aletheic is a CLI over a directory of YAML files. Every other surface (the MCP server, instruction blocks, the GitHub Action) goes through the same commands. There is no service, database, or network access.
 
 ```mermaid
 flowchart LR
@@ -11,17 +11,17 @@ flowchart LR
     people[People and CI]
   end
 
-  codex -->|shell| cli[threadline CLI]
+  codex -->|shell| cli[alethic CLI]
   claude -->|shell| cli
   gemini -->|shell| cli
   people -->|shell, GitHub Action| cli
-  claude -.->|MCP stdio| mcp[threadline mcp]
+  claude -.->|MCP stdio| mcp[alethic mcp]
   codex -.->|MCP stdio| mcp
   gemini -.->|MCP stdio| mcp
   mcp -->|same commands, in-process| cli
 
   cli --> write["Write path<br/>identity, path safety, references,<br/>anchor capture, secret scan, schema"]
-  write --> files[(".threadline/*.yaml<br/>one file per record")]
+  write --> files[(".alethic/*.yaml<br/>one file per record")]
   files <-->|commit, merge, review| git[(Git)]
 
   files --> read["Read path<br/>load, validate, staleness, conflicts"]
@@ -35,7 +35,7 @@ flowchart LR
 
 Every command that writes a record (`task`, `decision`, `knowledge`, `receipt`, `checkpoint`, `verify`, `doctor --fix`) does the same steps, in `src/core/write.ts`:
 
-1. **Identity.** `--agent` or `THREADLINE_AGENT`, required.
+1. **Identity.** `--agent` or `ALETHIC_AGENT`, required.
 2. **Path safety.** Paths must be repository-relative. Absolute paths, `..`, symlink escapes, and forbidden globs are refused. Globs expand only against `git ls-files`, and expansion is capped (`src/core/paths.ts`).
 3. **References.** Linked records must exist and be the right kind.
 4. **Anchor.** Git blob ids of the evidence files, then of scope matches, are captured up to a limit; the rest are summarized in an overflow digest (`src/core/anchor.ts`).
@@ -65,9 +65,9 @@ The compiler is deterministic. It uses no embeddings and no model calls, and ide
 
 ## Integrations
 
-- **Instruction blocks** (`src/adapters/blocks.ts`): a short managed block between markers in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. Its job is the trigger: start from `threadline resume`.
+- **Instruction blocks** (`src/adapters/blocks.ts`): a short managed block between markers in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. Its job is the trigger: start from `alethic resume`.
 - **MCP** (`src/mcp/`): a dependency-free JSON-RPC server over stdio. Each tool call runs the matching CLI command in-process, one call at a time, so validation and the secret scan cannot drift from the CLI. The official MCP SDK is used only in tests.
-- **GitHub Action** (`action.yml`): runs `threadline validate` in CI.
+- **GitHub Action** (`action.yml`): runs `alethic validate` in CI.
 
 ## Source layout
 

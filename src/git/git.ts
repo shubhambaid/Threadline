@@ -84,15 +84,15 @@ export async function shortSha(root: string, sha: string): Promise<string> {
 
 /**
  * Whether the working tree has uncommitted changes, including untracked files.
- * Changes under `.threadline/` are ignored by default, since writing records must not make
+ * Changes under `.alethic/` are ignored by default, since writing records must not make
  * the code state look dirty.
  */
 export async function isDirty(
   root: string,
-  options: { includeThreadline?: boolean } = {},
+  options: { includeAletheic?: boolean } = {},
 ): Promise<boolean> {
   const args = ["status", "--porcelain=v1", "--untracked-files=normal", "--", "."];
-  if (!options.includeThreadline) args.push(":(exclude).threadline");
+  if (!options.includeAletheic) args.push(":(exclude).alethic");
   return (await gitOk(root, args)).trim().length > 0;
 }
 
@@ -117,7 +117,7 @@ export async function mergeBase(root: string, a: string, b: string): Promise<str
 }
 
 /**
- * Whether any file outside `.threadline/` differs between two commits. Committing records
+ * Whether any file outside `.alethic/` differs between two commits. Committing records
  * alone does not count as a code change. Undefined if either commit is missing.
  */
 export async function codeChangedBetween(
@@ -125,7 +125,7 @@ export async function codeChangedBetween(
   from: string,
   to: string,
 ): Promise<boolean | undefined> {
-  const result = await git(root, ["diff", "--quiet", from, to, "--", ".", ":(exclude).threadline"]);
+  const result = await git(root, ["diff", "--quiet", from, to, "--", ".", ":(exclude).alethic"]);
   if (result.code === 0) return false;
   if (result.code === 1) return true;
   return undefined;
@@ -175,13 +175,13 @@ export async function hashWorkingTreeFiles(
 
 /**
  * Paths changed relative to `base` (committed since base, staged, unstaged) plus untracked
- * files, excluding `.threadline/`. Without a base, changes relative to HEAD. Sorted, unique.
+ * files, excluding `.alethic/`. Without a base, changes relative to HEAD. Sorted, unique.
  */
 export async function changedPathsSince(root: string, base: string | undefined): Promise<string[]> {
   const files = new Set<string>();
   const add = (output: string) => {
     for (const file of output.split("\0")) {
-      if (file && !file.startsWith(".threadline/")) files.add(file);
+      if (file && !file.startsWith(".alethic/")) files.add(file);
     }
   };
   const against = base ?? (await headCommit(root));

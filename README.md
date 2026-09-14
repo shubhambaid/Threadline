@@ -1,8 +1,8 @@
-# Threadline
+# Aletheic
 
-Shared memory for coding agents, anchored to Git.
+Verifiable context for coding agents.
 
-Threadline keeps the state of unfinished work in the repository: tasks, decisions, knowledge, checkpoints, and check receipts, as small YAML files under `.threadline/`. When one agent stops, the next one (Codex, Claude Code, Gemini, or a person) picks up from what was committed, without the previous chat history.
+Aletheic keeps the state of unfinished work in the repository: tasks, decisions, knowledge, checkpoints, and check receipts, as small YAML files under `.alethic/`. When one agent stops, the next one (Codex, Claude Code, Gemini, or a person) picks up from what was committed, without the previous chat history.
 
 <!-- Demo GIF goes here. Generate it with `vhs examples/demo/demo.tape` (writes docs/assets/demo.gif). -->
 
@@ -10,7 +10,7 @@ Threadline keeps the state of unfinished work in the repository: tasks, decision
 
 When an agent session ends, most of what it learned ends with it: which approach failed and why, what was decided, which tests ran against which commit. The next agent rediscovers it, or repeats the failed approach.
 
-Threadline records that as reviewable files committed with the code, and compiles them into a short, cited briefing for whoever continues.
+Aletheic records that as reviewable files committed with the code, and compiles them into a short, cited briefing for whoever continues.
 
 - **Plain files in Git.** One record per file, so they show up in pull requests and merge like code. No service, account, database, or network access.
 - **Anchored to code.** Records fingerprint the files they describe. When that code changes, the record is flagged *may be stale* instead of being trusted silently. Fingerprints are content-based, so records survive squash merges, rebases, and shallow clones.
@@ -40,42 +40,42 @@ The script builds a tiny auth service in a temporary directory, then hands one t
 
 ## Quickstart
 
-Threadline is not published to npm yet. Install it from source (Node 22.12 or later):
+Aletheic is not published to npm yet. Install it from source (Node 22.12 or later):
 
 ```sh
-git clone https://github.com/shubhambaid/Threadline.git
-cd Threadline && npm install && npm run build && npm link   # puts `threadline` on PATH
+git clone https://github.com/shubhambaid/Aletheic.git
+cd Aletheic && npm install && npm run build && npm link   # puts `alethic` on PATH
 ```
 
 In your repository:
 
 ```sh
-threadline init
-threadline render agents-md --write     # tell agents to start from `threadline resume`
-git add -A && git commit -m "Add Threadline"
+alethic init
+alethic render agents-md --write     # tell agents to start from `alethic resume`
+git add -A && git commit -m "Add Aletheic"
 ```
 
 An agent (or you) starts work and leaves a checkpoint before stopping:
 
 ```sh
-export THREADLINE_AGENT=codex
-threadline task start "Sessions issued before a password reset stop working" --paths "src/auth/**"
-npm test > test.log; threadline receipt add --command "npm test" --exit-code $? --output-file test.log
-threadline checkpoint create --failed "Delete session rows::the refresh cache still serves them" \
+export ALETHIC_AGENT=codex
+alethic task start "Sessions issued before a password reset stop working" --paths "src/auth/**"
+npm test > test.log; alethic receipt add --command "npm test" --exit-code $? --output-file test.log
+alethic checkpoint create --failed "Delete session rows::the refresh cache still serves them" \
   --next "Compare a token version on refresh"
-threadline task update <task-id> --status paused
+alethic task update <task-id> --status paused
 git add -A && git commit -m "wip: session reset"
 ```
 
 The next agent, in a fresh session:
 
 ```sh
-export THREADLINE_AGENT=claude-code
-threadline resume --budget 2500         # cited briefing; the budget is approximate (characters / 4)
-threadline task claim <task-id>
+export ALETHIC_AGENT=claude-code
+alethic resume --budget 2500         # cited briefing; the budget is approximate (characters / 4)
+alethic task claim <task-id>
 ```
 
-Before merging, `threadline validate` checks every record, and `threadline doctor` also looks for stale claims, contradictory decisions, and overlapping claims.
+Before merging, `alethic validate` checks every record, and `alethic doctor` also looks for stale claims, contradictory decisions, and overlapping claims.
 
 ## What is stored
 
@@ -93,10 +93,10 @@ Every record carries a confidence label, an anchor to the code it describes, and
 
 | Command | Purpose |
 |---|---|
-| `init`, `status`, `validate` | Set up, inspect, and check `.threadline/` |
+| `init`, `status`, `validate` | Set up, inspect, and check `.alethic/` |
 | `task start / claim / update / close` | Own work with expiring leases |
 | `decision add / update`, `knowledge add / update` | Record choices and facts |
-| `receipt add` | Record a check that already ran (Threadline never runs commands) |
+| `receipt add` | Record a check that already ran (Aletheic never runs commands) |
 | `checkpoint create / list / show` | Hand off unfinished work |
 | `resume` | Compile a cited, budgeted briefing for the next agent |
 | `verify`, `doctor` | Re-anchor checked claims; find stale records and conflicts |
@@ -117,7 +117,7 @@ Full reference: [docs/cli.md](docs/cli.md).
 - [CLI reference](docs/cli.md)
 - [Architecture](docs/architecture.md)
 - [Why not just AGENTS.md?](docs/why-not-agents-md.md)
-- [How Threadline compares](docs/comparison.md)
+- [How Aletheic compares](docs/comparison.md)
 - [Roadmap](ROADMAP.md) and [contributing](CONTRIBUTING.md)
 
 ## Status

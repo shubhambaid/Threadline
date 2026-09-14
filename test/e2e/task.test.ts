@@ -6,10 +6,10 @@ import { cli, TEST_NOW } from "../helpers/run-cli.js";
 import { as, expectOk, expectValid, initializedRepo, readRecord } from "../helpers/workspace.js";
 
 const TASK_ID = "task-invalidate-sessions-after-password-reset";
-const TASK_FILE = `.threadline/tasks/${TASK_ID}.yaml`;
+const TASK_FILE = `.alethic/tasks/${TASK_ID}.yaml`;
 const INTENT = "Invalidate sessions after password reset";
 
-describe("threadline task", () => {
+describe("alethic task", () => {
   it("starts an active task owned by the agent, with a lease and an anchor", async () => {
     const repo = await initializedRepo();
     const result = expectOk(
@@ -47,7 +47,7 @@ describe("threadline task", () => {
     const repo = await initializedRepo();
     const anonymous = await cli(["task", "start", INTENT], { cwd: repo.root });
     expect(anonymous.code).toBe(2);
-    expect(anonymous.stderr).toContain("THREADLINE_AGENT");
+    expect(anonymous.stderr).toContain("ALETHIC_AGENT");
 
     const unsafe = await cli(["task", "start", INTENT, "--paths", "../outside"], as(repo, "codex"));
     expect(unsafe.code).toBe(2);
@@ -125,7 +125,7 @@ describe("threadline task", () => {
     const repo = await initializedRepo();
     expectOk(await cli(["task", "start", INTENT], as(repo, "codex")));
     repo.write(
-      ".threadline/checkpoints/cp-broken-20260913t210500z.yaml",
+      ".alethic/checkpoints/cp-broken-20260913t210500z.yaml",
       stringifyRecord({
         id: "cp-broken-20260913t210500z",
         kind: "checkpoint",

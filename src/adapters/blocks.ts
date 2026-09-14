@@ -1,7 +1,7 @@
 import { UsageError } from "../core/errors.js";
 
-export const BLOCK_BEGIN = "<!-- threadline:begin -->";
-export const BLOCK_END = "<!-- threadline:end -->";
+export const BLOCK_BEGIN = "<!-- alethic:begin -->";
+export const BLOCK_END = "<!-- alethic:end -->";
 
 export const INSTRUCTION_KINDS = ["agents-md", "claude-md", "gemini-md"] as const;
 export type InstructionKind = (typeof INSTRUCTION_KINDS)[number];
@@ -20,26 +20,26 @@ const AGENT_NAMES: Record<InstructionKind, string> = {
 
 /**
  * The managed block. It is kept short because it shares the instruction file's size budget, and
- * its main job is the trigger: nothing else tells an agent to start from `threadline resume`.
+ * its main job is the trigger: nothing else tells an agent to start from `alethic resume`.
  * The briefing itself repeats the checkpoint and validate reminders.
  */
 export function instructionBlock(kind: InstructionKind): string {
   const agent = AGENT_NAMES[kind];
   return [
     BLOCK_BEGIN,
-    "## Threadline shared memory",
+    "## Aletheic shared memory",
     "",
-    "This repository keeps shared task memory in `.threadline/` so work can move between agents without chat history.",
+    "This repository keeps shared task memory in `.alethic/` so work can move between agents without chat history.",
     "",
-    `- Before non-trivial work, run \`threadline resume --target ${agent}\` and read the briefing. Items marked ⚠ are claims to check, not facts.`,
-    `- Identify yourself with \`THREADLINE_AGENT=${agent}\` or \`--agent ${agent}\`. Claim a task before changing it: \`threadline task claim <id>\`, or \`threadline task start "<intent>" --paths <globs>\`.`,
-    '- After running a check, record the result: `threadline receipt add --command "<cmd>" --exit-code <n> --output-file <log>`. Threadline records results; it does not run commands.',
-    "- Record choices with `threadline decision add` and durable facts with `threadline knowledge add`.",
-    '- Checkpoint only at meaningful boundaries (before stopping or handing off, after a decision, after an approach fails): `threadline checkpoint create --next "<next step>"`.',
-    "- Never put chat transcripts, secrets, credentials, customer data, or private agent memories in `.threadline/`.",
-    "- Before closing a task, run `threadline validate`, then `threadline task close <id>`.",
+    `- Before non-trivial work, run \`alethic resume --target ${agent}\` and read the briefing. Items marked ⚠ are claims to check, not facts.`,
+    `- Identify yourself with \`ALETHIC_AGENT=${agent}\` or \`--agent ${agent}\`. Claim a task before changing it: \`alethic task claim <id>\`, or \`alethic task start "<intent>" --paths <globs>\`.`,
+    '- After running a check, record the result: `alethic receipt add --command "<cmd>" --exit-code <n> --output-file <log>`. Aletheic records results; it does not run commands.',
+    "- Record choices with `alethic decision add` and durable facts with `alethic knowledge add`.",
+    '- Checkpoint only at meaningful boundaries (before stopping or handing off, after a decision, after an approach fails): `alethic checkpoint create --next "<next step>"`.',
+    "- Never put chat transcripts, secrets, credentials, customer data, or private agent memories in `.alethic/`.",
+    "- Before closing a task, run `alethic validate`, then `alethic task close <id>`.",
     "",
-    `Managed by \`threadline render ${kind} --write\`. Edits inside this block are overwritten.`,
+    `Managed by \`alethic render ${kind} --write\`. Edits inside this block are overwritten.`,
     BLOCK_END,
   ].join("\n");
 }
@@ -75,7 +75,7 @@ export function upsertBlock(
   const end = ends[0];
   if (begins.length !== 1 || ends.length !== 1 || !begin || !end || end.index < begin.index) {
     throw new UsageError(
-      `${fileName} has malformed Threadline markers (${begins.length} begin, ${ends.length} end). ` +
+      `${fileName} has malformed Aletheic markers (${begins.length} begin, ${ends.length} end). ` +
         `Leave exactly one "${BLOCK_BEGIN}" line followed by one "${BLOCK_END}" line, or remove both.`,
     );
   }

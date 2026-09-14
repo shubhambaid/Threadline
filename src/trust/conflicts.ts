@@ -109,7 +109,7 @@ export async function findContradictions(
           file: newer.file,
           path: "topic",
           message: `Accepted decisions ${olderId} and ${newerId} both decide ${topic} for overlapping paths, and neither supersedes the other`,
-          hint: `Keep one: \`threadline decision update ${olderId} --status superseded\` (or the other way round), or record a new decision with --supersedes.`,
+          hint: `Keep one: \`alethic decision update ${olderId} --status superseded\` (or the other way round), or record a new decision with --supersedes.`,
         });
       }
     }
@@ -146,7 +146,7 @@ export async function findOverlappingClaims(
         file: second.file,
         path: "scope.paths",
         message: `${idOf(first)} (${ownerA}) and ${idOf(second)} (${ownerB}) are both active over overlapping paths`,
-        hint: `Coordinate before editing the same files: pause one with \`threadline task update ${idOf(second)} --status paused\`, or narrow its paths.`,
+        hint: `Coordinate before editing the same files: pause one with \`alethic task update ${idOf(second)} --status paused\`, or narrow its paths.`,
       });
     }
   }
@@ -172,7 +172,7 @@ export function findUnretiredSupersessions(records: readonly LoadedRecord[]): Fi
         file: target.file,
         path: "status",
         message: `${old} is superseded by ${idOf(record)} but is still ${String(target.data.status)}`,
-        hint: `Retire it: \`threadline decision update ${old} --status superseded\`.`,
+        hint: `Retire it: \`alethic decision update ${old} --status superseded\`.`,
       });
     }
   }
@@ -196,7 +196,7 @@ export function findOrphanedCheckpoints(records: readonly LoadedRecord[]): Findi
       file: checkpoint.file,
       path: "task",
       message: `Written after ${idOf(task)} was closed (${status}); its next action may be unfinished work: ${truncate(next, 120)}`,
-      hint: `Review it with \`threadline checkpoint show ${idOf(checkpoint)}\`, and start a follow-up task if the work is still needed.`,
+      hint: `Review it with \`alethic checkpoint show ${idOf(checkpoint)}\`, and start a follow-up task if the work is still needed.`,
     });
   }
   return findings;

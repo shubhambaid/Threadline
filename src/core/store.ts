@@ -7,10 +7,10 @@ import { parseYaml, stringifyRecord, yamlFinding } from "./format.js";
 import { exists } from "./fs.js";
 import { KIND_DIRS, RECORD_KINDS, type RecordKind } from "./ids.js";
 import { isPlainObject } from "./json.js";
-import { THREADLINE_DIR } from "./paths.js";
+import { ALETHIC_DIR } from "./paths.js";
 
 export interface LoadedRecord {
-  /** Repository-relative path, e.g. `.threadline/tasks/task-x.yaml`. */
+  /** Repository-relative path, e.g. `.alethic/tasks/task-x.yaml`. */
   file: string;
   /** Kind implied by the directory the file is in. */
   kind: RecordKind;
@@ -25,7 +25,7 @@ export interface StoreLoad {
 }
 
 export function recordFile(kind: RecordKind, id: string): string {
-  return `${THREADLINE_DIR}/${KIND_DIRS[kind]}/${id}.yaml`;
+  return `${ALETHIC_DIR}/${KIND_DIRS[kind]}/${id}.yaml`;
 }
 
 /** Loads every record file. Files that are not parseable YAML mappings become findings instead. */
@@ -34,7 +34,7 @@ export async function loadRecords(root: string): Promise<StoreLoad> {
   const findings: Finding[] = [];
 
   for (const kind of RECORD_KINDS) {
-    const dir = `${THREADLINE_DIR}/${KIND_DIRS[kind]}`;
+    const dir = `${ALETHIC_DIR}/${KIND_DIRS[kind]}`;
     let entries: Dirent[];
     try {
       entries = await readdir(path.join(root, dir), { withFileTypes: true });

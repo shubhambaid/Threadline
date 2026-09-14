@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:task",
-  "title": "Threadline task",
+  "$id": "urn:alethic:v1:task",
+  "title": "Aletheic task",
   "type": "object",
   "allOf": [
-    { "$ref": "urn:threadline:v1:common#/$defs/envelope" },
+    { "$ref": "urn:alethic:v1:common#/$defs/envelope" },
     {
       "if": { "required": ["status"], "properties": { "status": { "const": "active" } } },
       "then": { "required": ["owner"] }
@@ -12,7 +12,7 @@
   ],
   "required": ["intent"],
   "properties": {
-    "id": { "$ref": "urn:threadline:v1:common#/$defs/taskId" },
+    "id": { "$ref": "urn:alethic:v1:common#/$defs/taskId" },
     "kind": { "const": "task" },
     "status": { "enum": ["proposed", "active", "paused", "blocked", "done", "abandoned"] },
     "intent": { "type": "string", "minLength": 1, "maxLength": 4000 },
@@ -21,13 +21,13 @@
       "type": "object",
       "required": ["agent", "claimed_at", "lease_expires_at"],
       "properties": {
-        "agent": { "$ref": "urn:threadline:v1:common#/$defs/agentName" },
-        "claimed_at": { "$ref": "urn:threadline:v1:common#/$defs/timestamp" },
-        "lease_expires_at": { "$ref": "urn:threadline:v1:common#/$defs/timestamp" }
+        "agent": { "$ref": "urn:alethic:v1:common#/$defs/agentName" },
+        "claimed_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" },
+        "lease_expires_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" }
       },
       "additionalProperties": false
     },
-    "next_action": { "$ref": "urn:threadline:v1:common#/$defs/text" }
+    "next_action": { "$ref": "urn:alethic:v1:common#/$defs/text" }
   },
   "unevaluatedProperties": false
 }

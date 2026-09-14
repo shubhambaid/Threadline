@@ -1,6 +1,6 @@
 /**
  * Extracts machine-checked YAML examples from Markdown, per the convention in docs/spec.md:
- * the line directly before a ```yaml fence is `<!-- threadline:schema=<name> [expect=invalid] -->`.
+ * the line directly before a ```yaml fence is `<!-- alethic:schema=<name> [expect=invalid] -->`.
  */
 export interface MarkdownExample {
   schema: string;
@@ -15,7 +15,7 @@ export interface ExtractResult {
   problems: string[];
 }
 
-const MARKER = /^<!-- threadline:schema=([a-z]+)( expect=invalid)? -->$/;
+const MARKER = /^<!-- alethic:schema=([a-z]+)( expect=invalid)? -->$/;
 const FENCE_OPEN = /^(`{3,}|~{3,})/;
 
 export function extractExamples(markdown: string): ExtractResult {
@@ -36,7 +36,7 @@ export function extractExamples(markdown: string): ExtractResult {
       fence = open[1];
       continue;
     }
-    if (!line.startsWith("<!--") || !line.includes("threadline:schema")) continue;
+    if (!line.startsWith("<!--") || !line.includes("alethic:schema")) continue;
 
     const marker = MARKER.exec(line);
     if (!marker) {

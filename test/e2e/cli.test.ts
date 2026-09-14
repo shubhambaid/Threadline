@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import pkg from "../../package.json" with { type: "json" };
 import { cli } from "../helpers/run-cli.js";
 
-describe("threadline CLI", () => {
+describe("alethic CLI", () => {
   it("prints the version", async () => {
     const result = await cli(["--version"], { cwd: tmpdir() });
     expect(result.code).toBe(0);
@@ -18,7 +18,7 @@ describe("threadline CLI", () => {
   });
 
   it("exits 2 when -C points at a missing directory", async () => {
-    const result = await cli(["-C", path.join(tmpdir(), "threadline-does-not-exist"), "status"], {
+    const result = await cli(["-C", path.join(tmpdir(), "alethic-does-not-exist"), "status"], {
       cwd: tmpdir(),
     });
     expect(result.code).toBe(2);

@@ -7,11 +7,11 @@ describe("extractExamples", () => {
   it("extracts tagged yaml blocks with schema and expectation", () => {
     const md = [
       "# Doc",
-      "<!-- threadline:schema=task -->",
+      "<!-- alethic:schema=task -->",
       `${fence}yaml`,
       "id: task-a",
       fence,
-      "<!-- threadline:schema=checkpoint expect=invalid -->",
+      "<!-- alethic:schema=checkpoint expect=invalid -->",
       `${fence}yaml`,
       "id: cp-b",
       fence,
@@ -30,26 +30,26 @@ describe("extractExamples", () => {
   });
 
   it("rejects a blank line between marker and fence", () => {
-    const md = ["<!-- threadline:schema=task -->", "", `${fence}yaml`, "id: x", fence].join("\n");
+    const md = ["<!-- alethic:schema=task -->", "", `${fence}yaml`, "id: x", fence].join("\n");
     const { examples, problems } = extractExamples(md);
     expect(examples).toEqual([]);
     expect(problems[0]).toMatch(/immediately followed/);
   });
 
   it("rejects a non-yaml fence after a marker", () => {
-    const md = ["<!-- threadline:schema=task -->", `${fence}yml`, "id: x", fence].join("\n");
+    const md = ["<!-- alethic:schema=task -->", `${fence}yml`, "id: x", fence].join("\n");
     expect(extractExamples(md).problems[0]).toMatch(/immediately followed/);
   });
 
   it("reports malformed markers", () => {
-    const md = "<!--threadline:schema=task-->";
+    const md = "<!--alethic:schema=task-->";
     expect(extractExamples(md).problems[0]).toMatch(/malformed marker/);
   });
 
   it("does not treat markers inside code fences as real", () => {
     const md = [
       "````markdown",
-      "<!-- threadline:schema=task -->",
+      "<!-- alethic:schema=task -->",
       `${fence}yaml`,
       "id: x",
       fence,
@@ -59,7 +59,7 @@ describe("extractExamples", () => {
   });
 
   it("reports unterminated fences", () => {
-    const md = ["<!-- threadline:schema=task -->", `${fence}yaml`, "id: x"].join("\n");
+    const md = ["<!-- alethic:schema=task -->", `${fence}yaml`, "id: x"].join("\n");
     expect(extractExamples(md).problems[0]).toMatch(/unterminated/);
   });
 });

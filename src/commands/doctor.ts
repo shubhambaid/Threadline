@@ -24,12 +24,12 @@ export interface DoctorOptions {
 interface Diagnosis extends Finding {
   /** The first command in the hint, when there is one. */
   command?: string;
-  /** Whether `threadline doctor --fix` resolves it. */
+  /** Whether `alethic doctor --fix` resolves it. */
   fixable: boolean;
 }
 
 const FIXABLE = new Set(["expired-lease", "superseded-still-accepted"]);
-const COMMAND = /`((?:threadline|git) [^`]+)`/;
+const COMMAND = /`((?:alethic|git) [^`]+)`/;
 const FALLBACK_MANIFEST = resolveManifest({ project: { name: "unknown" } });
 
 function strings(value: unknown): string[] {
@@ -69,7 +69,7 @@ export async function doctorCommand(io: Io, options: DoctorOptions): Promise<num
   if (fixed.length > 0) lines.push("Fixed", ...fixed.map((message) => `  ${message}`), "");
   for (const diagnosis of diagnoses) {
     lines.push(formatFinding(diagnosis));
-    if (diagnosis.fixable) lines.push("        fixable: threadline doctor --fix");
+    if (diagnosis.fixable) lines.push("        fixable: alethic doctor --fix");
   }
   if (diagnoses.length > 0) lines.push("");
   const fixable = diagnoses.filter((d) => d.fixable).length;

@@ -4,9 +4,9 @@ import { validateAgainst } from "../validate/schema.js";
 import type { Finding } from "./findings.js";
 import { parseYaml, yamlFinding } from "./format.js";
 import { exists } from "./fs.js";
-import { THREADLINE_DIR } from "./paths.js";
+import { ALETHIC_DIR } from "./paths.js";
 
-export const MANIFEST_FILE = `${THREADLINE_DIR}/manifest.yaml`;
+export const MANIFEST_FILE = `${ALETHIC_DIR}/manifest.yaml`;
 
 export interface Manifest {
   format_version: 1;
@@ -48,9 +48,9 @@ export function resolveManifest(raw: RawManifest): Manifest {
   };
 }
 
-/** The manifest written by `threadline init`. JSON strings are valid YAML scalars. */
+/** The manifest written by `alethic init`. JSON strings are valid YAML scalars. */
 export function defaultManifestYaml(projectName: string, defaultBranch: string): string {
-  return `# Threadline manifest. See docs/spec.md §7.
+  return `# Aletheic manifest. See docs/spec.md §7.
 format_version: 1
 project:
   name: ${JSON.stringify(projectName)}
@@ -96,7 +96,7 @@ export async function loadManifest(root: string): Promise<ManifestLoad> {
           code: "manifest-missing",
           file: MANIFEST_FILE,
           message: "manifest.yaml is missing",
-          hint: "Run `threadline init`.",
+          hint: "Run `alethic init`.",
         },
       ],
     };

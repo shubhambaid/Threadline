@@ -104,7 +104,7 @@ describe("scope matching", () => {
 });
 
 describe("checkContainment", () => {
-  const base = mkdtempSync(path.join(tmpdir(), "threadline-paths-"));
+  const base = mkdtempSync(path.join(tmpdir(), "alethic-paths-"));
   const repo = path.join(base, "repo");
   const outside = path.join(base, "outside");
   mkdirSync(path.join(repo, "src"), { recursive: true });

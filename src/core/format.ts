@@ -63,7 +63,7 @@ export function parseYaml(text: string): ParsedYaml {
   return { data: doc.toJS(), problems };
 }
 
-/** Field order used when Threadline writes records, so diffs stay stable and readable. */
+/** Field order used when Aletheic writes records, so diffs stay stable and readable. */
 const KEY_ORDER = [
   "id",
   "kind",

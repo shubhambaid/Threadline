@@ -46,7 +46,7 @@ const FALLBACK_MANIFEST = resolveManifest({ project: { name: "unknown" } });
 
 const SHA = /^[0-9a-f]{7,64}$/;
 
-/** Runs every check from docs/spec.md §16 against the repository's Threadline state. */
+/** Runs every check from docs/spec.md §16 against the repository's Aletheic state. */
 export async function validateRepository(
   root: string,
   options: ValidateOptions,
@@ -132,7 +132,7 @@ function checkIdentity(records: readonly LoadedRecord[]): Finding[] {
         file: record.file,
         path: "kind",
         message: `A ${kind} record is stored in ${KIND_DIRS[record.kind]}/`,
-        hint: `Move it to .threadline/${KIND_DIRS[kind]}/.`,
+        hint: `Move it to .alethic/${KIND_DIRS[kind]}/.`,
       });
     }
     if (id) byId.set(id, [...(byId.get(id) ?? []), record]);
@@ -363,7 +363,7 @@ async function checkStaleness(
       file: record.file,
       path: "anchor",
       message: `May be stale: ${result.reasons[0] ?? result.status}${more}`,
-      hint: `Check it against the current code, then run \`threadline verify ${id}\` (with --human <name> if a person confirmed it), or supersede or deprecate it.`,
+      hint: `Check it against the current code, then run \`alethic verify ${id}\` (with --human <name> if a person confirmed it), or supersede or deprecate it.`,
     });
   }
   return findings;

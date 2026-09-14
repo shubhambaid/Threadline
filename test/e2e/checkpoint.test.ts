@@ -13,7 +13,7 @@ import {
 const INTENT = "Invalidate sessions after password reset";
 const TASK_ID = "task-invalidate-sessions-after-password-reset";
 
-describe("threadline checkpoint", () => {
+describe("alethic checkpoint", () => {
   it("captures Git state and attaches receipts recorded since the task started", async () => {
     const repo = await initializedRepo();
     const base = await shortHead(repo);
@@ -67,7 +67,7 @@ describe("threadline checkpoint", () => {
     expect(result.stdout).toContain("2 changed paths, 2 receipts attached");
 
     const file =
-      ".threadline/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t211500z.yaml";
+      ".alethic/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t211500z.yaml";
     expect(readRecord(repo, file)).toMatchObject({
       status: "recorded",
       task: TASK_ID,
@@ -106,7 +106,7 @@ describe("threadline checkpoint", () => {
     expect(
       readRecord(
         repo,
-        ".threadline/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t211500z.yaml",
+        ".alethic/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t211500z.yaml",
       ).next_safe_action,
     ).toBe(NOT_DETERMINED);
   });

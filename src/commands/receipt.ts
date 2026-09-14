@@ -37,7 +37,7 @@ export interface ReceiptAddOptions extends CommonWriteOptions {
 }
 
 /**
- * Records the result of a check someone already ran. Threadline never runs the command.
+ * Records the result of a check someone already ran. Aletheic never runs the command.
  * A receipt made in CI on a clean tree is `ci-reported`, which is still a self-report
  * (docs/spec.md §8); nothing here can produce `ci-verified`.
  */

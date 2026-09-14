@@ -13,11 +13,11 @@ export async function mcpCommand(io: Io, run: RunCli): Promise<number> {
   try {
     cwd = await resolveRepoRoot(io);
     if (!(await isInitialized(cwd))) {
-      io.stderr(`threadline mcp: ${cwd} has no .threadline/ yet; run \`threadline init\`.\n`);
+      io.stderr(`alethic mcp: ${cwd} has no .alethic/ yet; run \`alethic init\`.\n`);
     }
   } catch (error) {
     if (!(error instanceof UsageError)) throw error;
-    io.stderr(`threadline mcp: ${error.message}\n`);
+    io.stderr(`alethic mcp: ${error.message}\n`);
   }
   const handler = createMcpHandler({ io: { ...io, cwd }, run });
   await serveStdio(handler, io.stdin ?? process.stdin, io.stdout);

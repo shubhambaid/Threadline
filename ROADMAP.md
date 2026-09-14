@@ -1,6 +1,6 @@
 # Roadmap
 
-Threadline is pre-release. This page lists what exists, what is needed before a first published release, and what may come later. Items can move as real use shows what matters.
+Aletheic is pre-release. This page lists what exists, what is needed before a first published release, and what may come later. Items can move as real use shows what matters.
 
 ## Done (v0)
 
@@ -14,7 +14,7 @@ Threadline is pre-release. This page lists what exists, what is needed before a 
 
 ## Before the first release
 
-- **Publish** as `@threadline/cli` once the npm scope is confirmed (fallback names are listed in the project plan), with the `threadline` command.
+- **Publish** to npm as `alethic` (unclaimed when checked on 2026-09-14), with the `alethic` command.
 - **Verify the adapters in real sessions** of Codex, Claude Code, and Gemini CLI. Today they are checked against vendor documentation and exercised with the official MCP client, not in live agent sessions.
 - **Antigravity setup**, verified the same way.
 - **Demo media**: a README GIF from `examples/demo/demo.tape` and a short video.

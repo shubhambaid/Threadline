@@ -26,7 +26,7 @@ async function resume(target: FixtureRepo, args: string[]): Promise<string> {
   return expectOk(
     await cli(["resume", "--task", RESUME_TASK, ...args], {
       cwd: target.root,
-      env: { THREADLINE_NOW: RESUME_NOW },
+      env: { ALETHIC_NOW: RESUME_NOW },
     }),
   ).stdout;
 }
@@ -67,7 +67,7 @@ function stripFrame(text: string): string {
   return lines.slice(start, end).join("\n");
 }
 
-describe("threadline resume", () => {
+describe("alethic resume", () => {
   it("stays within approximate budgets and keeps the essentials at 1000 tokens", async () => {
     for (const budget of [1000, 2500, 5000]) {
       const text = await resume(repo, ["--budget", String(budget)]);
@@ -188,10 +188,10 @@ describe("threadline resume", () => {
     const inferred = expectOk(
       await cli(["resume", "--budget", "1000"], {
         cwd: repo.root,
-        env: { THREADLINE_NOW: RESUME_NOW },
+        env: { ALETHIC_NOW: RESUME_NOW },
       }),
     );
-    expect(inferred.stdout).toContain(`# Threadline briefing: ${RESUME_TASK}`);
+    expect(inferred.stdout).toContain(`# Aletheic briefing: ${RESUME_TASK}`);
 
     const empty = await initializedRepo();
     const none = await cli(["resume"], { cwd: empty.root });

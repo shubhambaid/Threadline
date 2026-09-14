@@ -15,7 +15,7 @@ let repo: FixtureRepo;
 let session: McpSession;
 
 function files(dir: string): string[] {
-  return readdirSync(path.join(repo.root, ".threadline", dir)).filter((f) => f.endsWith(".yaml"));
+  return readdirSync(path.join(repo.root, ".alethic", dir)).filter((f) => f.endsWith(".yaml"));
 }
 
 beforeEach(async () => {
@@ -27,10 +27,10 @@ afterEach(async () => {
   await session.close();
 });
 
-describe("threadline mcp", () => {
+describe("alethic mcp", () => {
   it("initializes with the official client and lists tools", async () => {
     const { client } = session;
-    expect(client.getServerVersion()?.name).toBe("threadline");
+    expect(client.getServerVersion()?.name).toBe("alethic");
     expect(client.getInstructions()).toContain("Call `resume` before non-trivial work");
     const { tools } = await client.listTools();
     expect(tools.map((tool) => tool.name)).toEqual([
@@ -89,7 +89,7 @@ describe("threadline mcp", () => {
     expect(JSON.parse(textOf(checkpoint)).receipts).toHaveLength(1);
 
     const briefing = textOf(await call("resume", { target: "claude-code", budget: 1500 }));
-    expect(briefing).toContain(`# Threadline briefing: ${taskId}`);
+    expect(briefing).toContain(`# Aletheic briefing: ${taskId}`);
     expect(briefing).toContain("Invalidate the cached refresh entry.");
     expect(briefing).toContain("Delete session rows");
 
@@ -135,7 +135,7 @@ describe("threadline mcp", () => {
 
     const flagLike = await call("task_start", { intent: "--force", id: "task-flag-like" });
     expect(flagLike.isError, textOf(flagLike)).toBe(false);
-    expect(readRecord(repo, ".threadline/tasks/task-flag-like.yaml").intent).toBe("--force");
+    expect(readRecord(repo, ".alethic/tasks/task-flag-like.yaml").intent).toBe("--force");
 
     const claim = await call("task_claim", { id: taskId, agent: "gemini" });
     expect(claim.isError).toBe(true);
@@ -151,27 +151,27 @@ describe("threadline mcp", () => {
 
     const { resources } = await client.listResources();
     expect(resources.map((r) => r.uri)).toEqual([
-      "threadline://status",
-      `threadline://records/${taskId}`,
+      "alethic://status",
+      `alethic://records/${taskId}`,
     ]);
     const { resourceTemplates } = await client.listResourceTemplates();
-    expect(resourceTemplates[0]?.uriTemplate).toBe("threadline://records/{id}");
+    expect(resourceTemplates[0]?.uriTemplate).toBe("alethic://records/{id}");
 
-    const record = await client.readResource({ uri: `threadline://records/${taskId}` });
+    const record = await client.readResource({ uri: `alethic://records/${taskId}` });
     const content = record.contents[0] as { text: string; mimeType: string };
     expect(content.mimeType).toBe("application/yaml");
     expect(content.text).toContain(`id: ${taskId}`);
 
-    const status = await client.readResource({ uri: "threadline://status" });
+    const status = await client.readResource({ uri: "alethic://status" });
     expect(() => JSON.parse((status.contents[0] as { text: string }).text)).not.toThrow();
 
     await expect(
-      client.readResource({ uri: "threadline://records/../../etc/passwd" }),
+      client.readResource({ uri: "alethic://records/../../etc/passwd" }),
     ).rejects.toThrow(/Resource not found/);
   });
 });
 
-describe("threadline mcp stdio framing", () => {
+describe("alethic mcp stdio framing", () => {
   it("answers parse errors, ignores notifications, and writes one line per response", async () => {
     const input = new PassThrough();
     let output = "";
@@ -201,6 +201,6 @@ describe("threadline mcp stdio framing", () => {
       { jsonrpc: "2.0", id: 8, error: { code: -32601, message: "Method not found" } },
       { jsonrpc: "2.0", id: 9, error: { code: -32600, message: "Invalid Request" } },
     ]);
-    expect(existsSync(path.join(repo.root, ".threadline"))).toBe(true);
+    expect(existsSync(path.join(repo.root, ".alethic"))).toBe(true);
   });
 });

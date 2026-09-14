@@ -9,14 +9,14 @@ import { createRepo } from "../helpers/fixture-repo.js";
 import { cli } from "../helpers/run-cli.js";
 
 const LAYOUT = [
-  ".threadline/manifest.yaml",
-  ".threadline/.gitignore",
-  ".threadline/tasks/.gitkeep",
-  ".threadline/decisions/.gitkeep",
-  ".threadline/knowledge/.gitkeep",
-  ".threadline/checkpoints/.gitkeep",
-  ".threadline/receipts/.gitkeep",
-  ".threadline/local/.gitkeep",
+  ".alethic/manifest.yaml",
+  ".alethic/.gitignore",
+  ".alethic/tasks/.gitkeep",
+  ".alethic/decisions/.gitkeep",
+  ".alethic/knowledge/.gitkeep",
+  ".alethic/checkpoints/.gitkeep",
+  ".alethic/receipts/.gitkeep",
+  ".alethic/local/.gitkeep",
 ];
 
 async function repoWithCommit() {
@@ -26,7 +26,7 @@ async function repoWithCommit() {
   return repo;
 }
 
-describe("threadline init", () => {
+describe("alethic init", () => {
   it("creates the layout and a schema-valid manifest", async () => {
     const repo = await repoWithCommit();
     const result = await cli(["init", "--name", "acme-api"], { cwd: repo.root });
@@ -36,7 +36,7 @@ describe("threadline init", () => {
       expect(result.stdout).toContain(`created ${rel}`);
     }
     const manifest = parseYaml(
-      readFileSync(path.join(repo.root, ".threadline/manifest.yaml"), "utf8"),
+      readFileSync(path.join(repo.root, ".alethic/manifest.yaml"), "utf8"),
     );
     expect(manifest.problems).toEqual([]);
     expect(validateAgainst("manifest", manifest.data).issues).toEqual([]);
@@ -50,7 +50,7 @@ describe("threadline init", () => {
   it("is idempotent", async () => {
     const repo = await repoWithCommit();
     await cli(["init"], { cwd: repo.root });
-    const manifestPath = path.join(repo.root, ".threadline/manifest.yaml");
+    const manifestPath = path.join(repo.root, ".alethic/manifest.yaml");
     const before = readFileSync(manifestPath, "utf8");
     const again = await cli(["init", "--name", "other"], { cwd: repo.root });
     expect(again.code).toBe(0);
@@ -61,13 +61,9 @@ describe("threadline init", () => {
   it("keeps local/ out of Git but tracks its .gitkeep", async () => {
     const repo = await repoWithCommit();
     await cli(["init"], { cwd: repo.root });
-    repo.write(".threadline/local/notes.md", "private scratch\n");
-    expect((await git(repo.root, ["check-ignore", "-q", ".threadline/local/notes.md"])).code).toBe(
-      0,
-    );
-    expect((await git(repo.root, ["check-ignore", "-q", ".threadline/local/.gitkeep"])).code).toBe(
-      1,
-    );
+    repo.write(".alethic/local/notes.md", "private scratch\n");
+    expect((await git(repo.root, ["check-ignore", "-q", ".alethic/local/notes.md"])).code).toBe(0);
+    expect((await git(repo.root, ["check-ignore", "-q", ".alethic/local/.gitkeep"])).code).toBe(1);
   });
 
   it("validates cleanly right after init", async () => {
@@ -79,7 +75,7 @@ describe("threadline init", () => {
   });
 
   it("fails outside a Git repository", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "threadline-nogit-"));
+    const dir = mkdtempSync(path.join(tmpdir(), "alethic-nogit-"));
     const result = await cli(["init"], { cwd: dir });
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("Not inside a Git repository");
@@ -89,6 +85,6 @@ describe("threadline init", () => {
     const repo = await repoWithCommit();
     const result = await cli(["-C", repo.root, "init"], { cwd: tmpdir() });
     expect(result.code).toBe(0);
-    expect(existsSync(path.join(repo.root, ".threadline/manifest.yaml"))).toBe(true);
+    expect(existsSync(path.join(repo.root, ".alethic/manifest.yaml"))).toBe(true);
   });
 });

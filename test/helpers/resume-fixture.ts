@@ -59,7 +59,7 @@ export async function buildResumeFixture(): Promise<FixtureRepo> {
     "apps/web/login.tsx": "export const Login = () => null;\n",
     "apps/api/billing/invoice.ts": "export const round = (n: number) => n;\n",
   });
-  const logs = mkdtempSync(path.join(tmpdir(), "threadline-resume-logs-"));
+  const logs = mkdtempSync(path.join(tmpdir(), "alethic-resume-logs-"));
   let minute = 0;
   const run = async (agent: string, args: string[]) => {
     minute += 1;
@@ -185,7 +185,7 @@ export async function buildResumeFixture(): Promise<FixtureRepo> {
     "Make refresh.ts compare token_version",
   ]);
   await run("codex", ["task", "update", RESUME_TASK, "--status", "paused"]);
-  await repo.commitAll("threadline: codex checkpoint");
+  await repo.commitAll("alethic: codex checkpoint");
 
   // Claude Code takes over and rewrites refresh.ts.
   await run("claude-code", ["task", "claim", RESUME_TASK]);
@@ -324,6 +324,6 @@ export async function buildResumeFixture(): Promise<FixtureRepo> {
     "--link",
     "dec-web-login-copy",
   ]);
-  await repo.commitAll("threadline: claude checkpoint");
+  await repo.commitAll("alethic: claude checkpoint");
   return repo;
 }

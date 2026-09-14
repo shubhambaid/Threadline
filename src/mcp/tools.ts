@@ -59,7 +59,7 @@ const pair = (left: string, right: string, description: string): Schema =>
     required: [left, right],
     additionalProperties: false,
   });
-const AGENT = text("agent writing the record (default: the server's THREADLINE_AGENT)", 64);
+const AGENT = text("agent writing the record (default: the server's ALETHIC_AGENT)", 64);
 const PATHS = list("repository paths or globs", text("", 512));
 
 function object(properties: Record<string, Schema>, required: string[] = []): Schema {
@@ -120,7 +120,7 @@ export const TOOLS: readonly ToolSpec[] = [
     name: "validate",
     title: "Validate records",
     description:
-      "Check .threadline/ for schema, provenance, privacy, and lease problems. Run before closing a task. Findings are returned, not raised as errors.",
+      "Check .alethic/ for schema, provenance, privacy, and lease problems. Run before closing a task. Findings are returned, not raised as errors.",
     inputSchema: object({ strict: { type: "boolean", description: "missing commits are errors" } }),
     annotations: READ,
     okCodes: [0, 1],
@@ -217,7 +217,7 @@ export const TOOLS: readonly ToolSpec[] = [
     name: "receipt_record",
     title: "Record a check result",
     description:
-      "Record the result of a command that already ran (tests, lint, build). Threadline does not run it. The output tail is redacted and truncated; the confidence is agent-reported.",
+      "Record the result of a command that already ran (tests, lint, build). Aletheic does not run it. The output tail is redacted and truncated; the confidence is agent-reported.",
     inputSchema: object(
       {
         command: text("the command that ran, e.g. pnpm test auth", 1000),

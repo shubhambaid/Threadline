@@ -59,7 +59,7 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
   }
 
   const lines = [
-    `Threadline status: ${status.project ?? "(manifest invalid)"}`,
+    `Aletheic status: ${status.project ?? "(manifest invalid)"}`,
     `  branch   ${branch ?? "(detached HEAD)"} @ ${head ? head.slice(0, 7) : "no commits"} (${dirty ? "dirty" : "clean"})`,
     `  records  ${[
       plural(counts.task, "task"),
@@ -92,7 +92,7 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
     "",
     report.errors === 0
       ? `Validation: ok (${plural(report.warnings, "warning")})`
-      : `Validation: ${plural(report.errors, "error")}, ${plural(report.warnings, "warning")}. Run \`threadline validate\` for details.`,
+      : `Validation: ${plural(report.errors, "error")}, ${plural(report.warnings, "warning")}. Run \`alethic validate\` for details.`,
   );
   io.stdout(`${lines.join("\n")}\n`);
   return 0;

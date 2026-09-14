@@ -19,7 +19,7 @@ describe("checkpoint receipt attachment", () => {
     );
     expect(result.stdout).toContain("1 receipt attached");
     expect(
-      readRecord(repo, ".threadline/checkpoints/cp-fast-task-20260913t210001z.yaml").receipts,
+      readRecord(repo, ".alethic/checkpoints/cp-fast-task-20260913t210001z.yaml").receipts,
     ).toEqual(["rcpt-npm-test-20260913t210000z"]);
   });
 });

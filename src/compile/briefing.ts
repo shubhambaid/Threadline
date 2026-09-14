@@ -51,7 +51,7 @@ const STALE: ReadonlySet<DerivedStatus> = new Set([
 export interface CheckpointRelation {
   kind: "head" | "ahead" | "other-line" | "unavailable";
   commits?: number;
-  /** Whether files outside .threadline/ changed between the checkpoint and HEAD. */
+  /** Whether files outside .alethic/ changed between the checkpoint and HEAD. */
   codeChanged?: boolean;
 }
 
@@ -153,14 +153,14 @@ export function buildBriefing(input: BriefingInput): Briefing {
 
 function frame(target: Target, budget: number, taskId: string, content: string): string {
   return [
-    `# Threadline briefing: ${taskId}`,
+    `# Aletheic briefing: ${taskId}`,
     "",
-    `> Compiled by \`threadline resume\` for ${TARGET_NAMES[target]}. Budget: about ${budget} tokens, estimated as characters / 4. Every bullet cites its source; ⚠ marks claims that are unverified or may be stale.`,
+    `> Compiled by \`alethic resume\` for ${TARGET_NAMES[target]}. Budget: about ${budget} tokens, estimated as characters / 4. Every bullet cites its source; ⚠ marks claims that are unverified or may be stale.`,
     "",
     content,
     "",
     "---",
-    `${TARGET_HINTS[target]} Before stopping, run \`threadline checkpoint create\`. Before closing the task, run \`threadline validate\`. Never put secrets, customer data, or chat transcripts in records.`,
+    `${TARGET_HINTS[target]} Before stopping, run \`alethic checkpoint create\`. Before closing the task, run \`alethic validate\`. Never put secrets, customer data, or chat transcripts in records.`,
     "",
   ].join("\n");
 }

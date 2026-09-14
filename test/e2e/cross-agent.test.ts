@@ -12,7 +12,7 @@ const GEMINI_AT = "2026-09-14T21:00:00Z";
 const TASK = "task-invalidate-sessions-after-password-reset";
 
 function logFile(content: string): string {
-  const file = path.join(mkdtempSync(path.join(os.tmpdir(), "threadline-log-")), "out.log");
+  const file = path.join(mkdtempSync(path.join(os.tmpdir(), "alethic-log-")), "out.log");
   writeFileSync(file, content);
   return file;
 }
@@ -89,7 +89,7 @@ it("hands one task from Codex to Claude Code to Gemini through shared records", 
   const claude = await connectMcp(repo.root, "claude-code", CLAUDE_AT);
   try {
     const briefing = textOf(await claude.call("resume", { target: "claude-code" }));
-    expect(briefing).toContain(`# Threadline briefing: ${TASK}`);
+    expect(briefing).toContain(`# Aletheic briefing: ${TASK}`);
     expect(briefing).toContain("Compare token_version in apps/api/auth/refresh.ts");
     expect(briefing).toContain("Delete session rows on reset");
     expect(briefing).toMatch(/`pnpm test auth` failed \(exit 1\)/);
@@ -159,11 +159,11 @@ it("hands one task from Codex to Claude Code to Gemini through shared records", 
   await repo.commitAll("gemini: close task");
   await expectValid(repo, GEMINI_AT);
 
-  expect(readRecord(repo, `.threadline/tasks/${TASK}.yaml`).status).toBe("done");
+  expect(readRecord(repo, `.alethic/tasks/${TASK}.yaml`).status).toBe("done");
   const writers = (dir: string) =>
-    readdirSync(path.join(repo.root, ".threadline", dir))
+    readdirSync(path.join(repo.root, ".alethic", dir))
       .filter((file) => file.endsWith(".yaml"))
-      .map((file) => readRecord(repo, `.threadline/${dir}/${file}`))
+      .map((file) => readRecord(repo, `.alethic/${dir}/${file}`))
       .map((record) => (record.created_by as { agent: string }).agent)
       .sort();
   expect(writers("checkpoints")).toEqual(["claude-code", "codex"]);
@@ -171,7 +171,7 @@ it("hands one task from Codex to Claude Code to Gemini through shared records", 
   expect(writers("decisions")).toEqual(["claude-code"]);
   expect(await repo.run(["status", "--porcelain"])).toBe("");
   const summary = expectOk(await cli(["render", "pr-summary", "--task", TASK], gemini)).stdout;
-  expect(summary).toContain(`Threadline task \`${TASK}\`: done, owner gemini.`);
+  expect(summary).toContain(`Aletheic task \`${TASK}\`: done, owner gemini.`);
   expect(summary).toMatch(/- Passed: `pnpm test` \(exit 0\)/);
   expect(summary).not.toContain("### Next");
 });

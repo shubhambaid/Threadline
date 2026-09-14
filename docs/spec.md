@@ -1,7 +1,7 @@
-# Threadline Specification — format v1
+# Aletheic Specification — format v1
 
-> Shared memory for coding agents, anchored to Git.
-> Git versions code. Threadline versions the context needed to change it safely.
+> Verifiable context for coding agents.
+> Git versions code. Aletheic versions the context needed to change it safely.
 
 Status: draft for v0. This document is normative. The words MUST, MUST NOT, SHOULD, and MAY carry their usual RFC 2119 meaning. The JSON Schemas in [`schemas/`](../schemas) are the machine-readable form of the rules here. If this document and the schemas disagree, that is a bug, and the test suite is built to catch it (see [Appendix A](#appendix-a-machine-checked-examples)).
 
@@ -18,7 +18,7 @@ Coding agents such as Codex, Claude Code, and Gemini/Antigravity each work in is
 
 Today that context lives in chat history, which is private, huge, and vendor-specific, or in ad-hoc handoff Markdown, which is unstructured, unverifiable, and silently goes stale. Agents repeat investigations, contradict earlier decisions, and trust test results that no longer apply.
 
-Threadline stores that context as small, typed, reviewable records inside the repository, versioned by Git alongside the code they describe.
+Aletheic stores that context as small, typed, reviewable records inside the repository, versioned by Git alongside the code they describe.
 
 ## 2. Principles
 
@@ -26,7 +26,7 @@ Threadline stores that context as small, typed, reviewable records inside the re
 2. **Evidence over assertion.** Important records link to commits, files, checks, receipts, issues, PRs, or human confirmations. A claim with no evidence is labeled as such.
 3. **Portable by default.** The format is plain YAML plus JSON Schema. It depends on no model, IDE, CLI, or vendor.
 4. **Small context, not transcript dumps.** Agents receive a task-specific briefing within an approximate size budget, not the whole store.
-5. **Human-readable and machine-validatable.** A developer can read and hand-edit every record without Threadline installed, and CI can validate them without a model.
+5. **Human-readable and machine-validatable.** A developer can read and hand-edit every record without Aletheic installed, and CI can validate them without a model.
 6. **Private by design.** Raw transcripts, credentials, customer data, and model-private memories never enter committed state.
 
 ## 3. Non-goals (v0)
@@ -35,13 +35,13 @@ Threadline stores that context as small, typed, reviewable records inside the re
 - Storing chat transcripts or reasoning traces, in full or in part.
 - Orchestrating agents: scheduling, running, or supervising them, or executing commands on their behalf.
 - Hosted accounts, billing, sync services, or a central database.
-- Inferring "truth" from agent output automatically. Threadline records who claimed what, with what evidence, and at what trust level. It never upgrades a claim on its own.
+- Inferring "truth" from agent output automatically. Aletheic records who claimed what, with what evidence, and at what trust level. It never upgrades a claim on its own.
 - Semantic/embedding search. Retrieval is deterministic.
 
 ## 4. File layout
 
 ```text
-.threadline/
+.alethic/
   manifest.yaml          # project settings (§7)
   .gitignore             # ignores local/
   tasks/                 # task-*.yaml
@@ -83,7 +83,7 @@ Every record (task, decision, knowledge, checkpoint, receipt) shares these field
 
 Unknown fields are rejected, and extensions require a new `schema_version`. Checkpoint and receipt ids SHOULD end in a UTC timestamp (`-20260913t201500z`) so that parallel writers never collide.
 
-A note on the brief's `status: verified`: in Threadline, *verification is a trust level*, not a lifecycle status. A decision is `status: accepted` with `confidence: human-confirmed`, for example.
+A note on the brief's `status: verified`: in Aletheic, *verification is a trust level*, not a lifecycle status. A decision is `status: accepted` with `confidence: human-confirmed`, for example.
 
 ## 6. Record kinds
 
@@ -97,7 +97,7 @@ A unit of intended work: what it is for, who holds it, and what comes next.
 - `owner`: `{agent, claimed_at, lease_expires_at}`. It is required when `status: active` (see §12).
 - `next_action`: the next concrete step.
 
-<!-- threadline:schema=task -->
+<!-- alethic:schema=task -->
 ```yaml
 id: task-session-reset-invalidation
 kind: task
@@ -140,7 +140,7 @@ A choice that later work must respect: what was chosen, why, and what was reject
 - `topic` (required): a stable dotted key for *what* is being decided, such as `auth.session-invalidation`. Two `accepted` decisions with the same topic and overlapping scope conflict unless one `supersedes` the other (§11).
 - `chosen` (required), `rationale` (required), `alternatives`: `[{option, rejected_because}]`.
 
-<!-- threadline:schema=decision -->
+<!-- alethic:schema=decision -->
 ```yaml
 id: dec-auth-session-rotation
 kind: decision
@@ -195,7 +195,7 @@ A durable architectural or operational fact that is useful beyond one task.
 - `category` (required): `architecture` | `operations` | `convention` | `gotcha`
 - `body` (required): the fact, with enough detail to act on.
 
-<!-- threadline:schema=knowledge -->
+<!-- alethic:schema=knowledge -->
 ```yaml
 id: kn-refresh-tokens-cached-in-redis
 kind: knowledge
@@ -235,15 +235,15 @@ A compact, append-only handoff snapshot for unfinished work. A checkpoint is wri
 - `task` (required): the task id.
 - `git` (required): `{branch?, base?, head, dirty, changed_paths?}`. `head` and `dirty` are required, so a checkpoint without a Git reference is invalid.
   - `base`: merge-base with the default branch.
-  - `dirty`: whether the working tree had uncommitted changes, including untracked files, **outside `.threadline/`**. Writing Threadline records never makes the code state dirty.
+  - `dirty`: whether the working tree had uncommitted changes, including untracked files, **outside `.alethic/`**. Writing Aletheic records never makes the code state dirty.
   - `changed_paths`: paths changed since `base`, including uncommitted changes when `dirty: true`.
 - `done`: what is finished.
 - `failed_approaches`: `[{approach, why_failed, evidence?}]`. This is the field most often missing from handoffs, and one of the most valuable.
 - `open_questions`: unknowns the next agent must not guess at.
-- `next_safe_action` (required): one concrete step that is safe to take without further context. An agent that must stop without knowing the next step still checkpoints: `threadline checkpoint create` falls back to the task's `next_action`, then to `Not determined: review open_questions and failed_approaches before acting.`
+- `next_safe_action` (required): one concrete step that is safe to take without further context. An agent that must stop without knowing the next step still checkpoints: `alethic checkpoint create` falls back to the task's `next_action`, then to `Not determined: review open_questions and failed_approaches before acting.`
 - `receipts`: verification receipts covering this state.
 
-<!-- threadline:schema=checkpoint -->
+<!-- alethic:schema=checkpoint -->
 ```yaml
 id: cp-session-reset-20260913t201500z
 kind: checkpoint
@@ -289,16 +289,16 @@ links:
 
 ### 6.5 Receipt
 
-The recorded result of a test, build, lint, or other check, tied to the code state it ran on. Threadline **records** receipts. It does not run commands.
+The recorded result of a test, build, lint, or other check, tied to the code state it ran on. Aletheic **records** receipts. It does not run commands.
 
 - `status`: always `recorded`. Receipts are append-only.
 - `command` (required), `exit_code` (required), `result` (required): `pass` (exit code MUST be 0) | `fail` (exit code MUST NOT be 0) | `error` (the check could not run properly).
 - `ran_at` (required), `duration_ms`.
-- `git` (required): `{branch?, head, dirty}`. `dirty` means the same as in a checkpoint: uncommitted changes outside `.threadline/`.
+- `git` (required): `{branch?, head, dirty}`. `dirty` means the same as in a checkpoint: uncommitted changes outside `.alethic/`.
 - `output_tail`: at most 4,000 characters from the end of the output, redacted (§13) before writing.
 - `provenance`: `{source: local | ci-env | github-attestation, run_url?, attestation?}`.
 
-<!-- threadline:schema=receipt -->
+<!-- alethic:schema=receipt -->
 ```yaml
 id: rcpt-auth-tests-20260913t200200z
 kind: receipt
@@ -332,9 +332,9 @@ scope:
 
 ## 7. Manifest
 
-`.threadline/manifest.yaml` holds project-wide settings. Every section except `format_version` and `project` is optional, and the defaults are shown below.
+`.alethic/manifest.yaml` holds project-wide settings. Every section except `format_version` and `project` is optional, and the defaults are shown below.
 
-<!-- threadline:schema=manifest -->
+<!-- alethic:schema=manifest -->
 ```yaml
 format_version: 1
 project:
@@ -373,7 +373,7 @@ Rules:
 
 1. Trust levels are hard to forge by design. Tools MUST NOT grant `ci-verified` based on environment variables, file paths, agent names, or anything else a local process controls. For the same reason, tools that sort, score, or filter by trust MUST NOT rank `ci-reported` above `agent-reported`.
 2. In format v1, `validate` MUST reject `ci-verified` when `trust.ci_provenance` is `none` or absent. The attestation verifier for `github-attestation` is on the roadmap; until it ships, `ci-verified` cannot be produced.
-3. No tool upgrades confidence on its own. Upgrades happen through an explicit action such as `threadline verify <id> --human <name>`, and that action is visible in the Git diff.
+3. No tool upgrades confidence on its own. Upgrades happen through an explicit action such as `alethic verify <id> --human <name>`, and that action is visible in the Git diff.
 4. Briefings (§14) treat only `human-confirmed` and `ci-verified` as verified. Everything else is shown with an *unverified* marker.
 5. When evidence commits disappear (squash merge, rebase, shallow clone), the record keeps its confidence, and validators report a warning, not an error (§9). Durable evidence such as PRs, issues, and receipts is preferred over branch-local commit ids.
 
@@ -410,7 +410,7 @@ The derived status is computed at read time and never written into the record au
 
 An anchor commit that is missing, or not an ancestor, while the fingerprints still match is reported only as an informational note ("anchor commit unavailable"). This is why a record created on a feature branch stays `fresh` after that branch is squash-merged and deleted.
 
-A record is re-anchored only by an explicit action (`threadline verify`), and that action shows up as a diff.
+A record is re-anchored only by an explicit action (`alethic verify`), and that action shows up as a diff.
 
 ## 10. Path safety
 
@@ -427,7 +427,7 @@ Each record fingerprints at most `limits.max_fingerprints_per_record` files: cit
 
 ## 11. Merge behavior and conflicts
 
-Threadline relies on Git to merge records and adds checks for the conflicts Git cannot see.
+Aletheic relies on Git to merge records and adds checks for the conflicts Git cannot see.
 
 | Situation | What happens |
 |---|---|
@@ -445,14 +445,14 @@ Resolving a contradiction means writing a new decision that `supersedes` the los
 
 An `active` task has an `owner` with a lease, which signals to other agents that someone is working on it.
 
-- `threadline task start` and `threadline task claim` set `lease_expires_at = now + defaults.lease_minutes`.
+- `alethic task start` and `alethic task claim` set `lease_expires_at = now + defaults.lease_minutes`.
 - Claiming a task whose lease is held by another agent and has not expired fails without `--force`. Renewing your own lease always succeeds.
 - An `active` task whose lease has expired is **invalid**: `validate` rejects it. An agent that stops work MUST either hand off (write a checkpoint and set `status: paused`) or renew. This keeps abandoned claims from blocking other agents.
 - Leases are advisory coordination, not locks. Git remains the source of truth.
 
 ## 13. Privacy boundary
 
-Committed Threadline state is **shared, reviewable, and permanent**: once pushed, assume it is public to everyone with repository access, forever.
+Committed Aletheic state is **shared, reviewable, and permanent**: once pushed, assume it is public to everyone with repository access, forever.
 
 MUST NOT appear in any record:
 
@@ -467,13 +467,13 @@ Enforcement:
 - Write commands scan every string field and refuse to write anything that matches a secret pattern. `validate` runs the same scan and rejects matching records.
 - The built-in patterns cover PEM private-key blocks; AWS access key ids; Google API keys; GitHub, GitLab, Slack, Stripe, OpenAI, and Anthropic token formats; JWTs; URLs with embedded credentials; and assignments shaped like `password|passwd|secret|token|api[_-]?key` followed by `:` or `=` and a non-placeholder value. Projects add their own patterns with `privacy.extra_secret_patterns`.
 - `receipt.output_tail` is redacted before writing, with matches replaced by `[REDACTED]`.
-- Scanning is a safety net, not a guarantee. Review `.threadline/` diffs like any other code.
+- Scanning is a safety net, not a guarantee. Review `.alethic/` diffs like any other code.
 
-`.threadline/local/` is gitignored for per-machine scratch. Tools never read it into shared outputs.
+`.alethic/local/` is gitignored for per-machine scratch. Tools never read it into shared outputs.
 
 ## 14. Context briefings
 
-`threadline resume` compiles a briefing for the next agent from records and the current Git state:
+`alethic resume` compiles a briefing for the next agent from records and the current Git state:
 
 1. **Goal**
 2. **Current repository state**: branch, HEAD, dirty, and changes since base
@@ -496,15 +496,15 @@ Rules:
 
 The format is agent-neutral. Integrations are thin:
 
-- **Instruction files.** `threadline render` maintains a marked block (`<!-- threadline:begin -->` … `<!-- threadline:end -->`) in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to run `threadline resume` before non-trivial work, write checkpoints only at meaningful boundaries, record receipts with `threadline receipt add`, never store private content (§13), and run `threadline validate` before closing work. Content outside the block is never touched. Agents do not share one instruction file by default: Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GEMINI.md` unless configured otherwise. A `CLAUDE.md` or `GEMINI.md` that imports `@AGENTS.md` can share the `AGENTS.md` block, and `render` detects that instead of writing a second copy.
-- **MCP.** `threadline mcp` exposes the same operations as MCP tools and resources for agents that support MCP. Tools run the same command code as the CLI, including schema validation, path safety, and the secret scan. No MCP tool can mark a record `human-confirmed`: human confirmation goes through the CLI with `--human`.
-- **CLI.** Every agent that can run shell commands can use the CLI directly. Identity comes from `--agent` or `THREADLINE_AGENT`.
+- **Instruction files.** `alethic render` maintains a marked block (`<!-- alethic:begin -->` … `<!-- alethic:end -->`) in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to run `alethic resume` before non-trivial work, write checkpoints only at meaningful boundaries, record receipts with `alethic receipt add`, never store private content (§13), and run `alethic validate` before closing work. Content outside the block is never touched. Agents do not share one instruction file by default: Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GEMINI.md` unless configured otherwise. A `CLAUDE.md` or `GEMINI.md` that imports `@AGENTS.md` can share the `AGENTS.md` block, and `render` detects that instead of writing a second copy.
+- **MCP.** `alethic mcp` exposes the same operations as MCP tools and resources for agents that support MCP. Tools run the same command code as the CLI, including schema validation, path safety, and the secret scan. No MCP tool can mark a record `human-confirmed`: human confirmation goes through the CLI with `--human`.
+- **CLI.** Every agent that can run shell commands can use the CLI directly. Identity comes from `--agent` or `ALETHIC_AGENT`.
 
 Per-agent setup (exact config files and commands) lives in `docs/adapters/`, where it is checked against each vendor's current documentation.
 
 ## 16. Validation summary
 
-`threadline validate` exits 0 when state is valid, 1 on errors, and 2 on usage or environment problems. It MUST report errors for:
+`alethic validate` exits 0 when state is valid, 1 on errors, and 2 on usage or environment problems. It MUST report errors for:
 
 - schema violations, mapped to `file: field` with a fix hint;
 - a file name that does not match its id, a record in the wrong directory, or duplicate ids;
@@ -526,23 +526,23 @@ It reports warnings for derived staleness (§9) and contradictory decisions (§1
 ### 17.1 Fresh task
 
 ```console
-$ threadline init
-Created .threadline/ (manifest, tasks, decisions, knowledge, checkpoints, receipts, local/)
+$ alethic init
+Created .alethic/ (manifest, tasks, decisions, knowledge, checkpoints, receipts, local/)
 
-$ THREADLINE_AGENT=codex threadline task start "Invalidate sessions after password reset" \
+$ ALETHIC_AGENT=codex alethic task start "Invalidate sessions after password reset" \
     --paths 'apps/api/auth/**' --branch feat/session-reset
-Created .threadline/tasks/task-invalidate-sessions-after-password-reset.yaml (active, lease until 22:02Z)
+Created .alethic/tasks/task-invalidate-sessions-after-password-reset.yaml (active, lease until 22:02Z)
 
-$ git add .threadline && git commit -m "threadline: start session reset task"
+$ git add .alethic && git commit -m "alethic: start session reset task"
 ```
 
-Codex works and runs the auth tests, which fail. It records the result without Threadline running anything:
+Codex works and runs the auth tests, which fail. It records the result without Aletheic running anything:
 
 ```console
 $ pnpm test auth > /tmp/auth.log; echo $?
 1
-$ threadline receipt add --command "pnpm test auth" --exit-code 1 --output-file /tmp/auth.log
-Created .threadline/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, agent-reported)
+$ alethic receipt add --command "pnpm test auth" --exit-code 1 --output-file /tmp/auth.log
+Created .alethic/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, agent-reported)
 ```
 
 ### 17.2 Agent handoff
@@ -550,25 +550,25 @@ Created .threadline/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, ag
 Codex has to stop. It writes a checkpoint at this boundary:
 
 ```console
-$ threadline checkpoint create \
+$ alethic checkpoint create \
     --done "Added users.token_version (migration 0042)" \
     --failed "Delete all session rows on reset::Refresh tokens are cached in Redis for 15 minutes" \
     --question "Should API keys issued before the reset also be revoked?" \
     --next "Make refresh-token validation compare token_version, then rerun pnpm test auth"
-Created .threadline/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t201500z.yaml
+Created .alethic/checkpoints/cp-invalidate-sessions-after-password-reset-20260913t201500z.yaml
   git: feat/session-reset @ 9c1e4b7 (dirty), 4 changed paths, 1 receipt attached
 
-$ threadline task update task-invalidate-sessions-after-password-reset --status paused
-$ git add -A && git commit -m "wip: token version; threadline checkpoint" && git push
+$ alethic task update task-invalidate-sessions-after-password-reset --status paused
+$ git add -A && git commit -m "wip: token version; alethic checkpoint" && git push
 ```
 
 Claude Code picks the work up in a fresh session with no chat history:
 
 ```console
-$ git pull && THREADLINE_AGENT=claude-code threadline task claim task-invalidate-sessions-after-password-reset
+$ git pull && ALETHIC_AGENT=claude-code alethic task claim task-invalidate-sessions-after-password-reset
 Claimed (lease until 01:30Z)
 
-$ threadline resume --target claude-code --budget 2500
+$ alethic resume --target claude-code --budget 2500
 ## Goal
 After a password reset, every session and refresh token issued before it must stop working. [task-invalidate-sessions-after-password-reset] ⚠ unverified
 ## Failed approaches
@@ -578,23 +578,23 @@ Make refresh-token validation compare token_version, then rerun pnpm test auth. 
 ...
 ```
 
-Claude does not repeat the failed approach. It records a decision, and the maintainer confirms it in PR review with `threadline verify dec-auth-session-rotation --human maintainer`.
+Claude does not repeat the failed approach. It records a decision, and the maintainer confirms it in PR review with `alethic verify dec-auth-session-rotation --human maintainer`.
 
 ### 17.3 Stale-memory detection
 
 Weeks later, someone rewrites `apps/api/auth/refresh.ts` to use opaque tokens stored in Postgres, and the Redis cache goes away. Neither the decision nor the knowledge record is edited. An agent on a new task touching `apps/api/auth/**` runs:
 
 ```console
-$ threadline resume --budget 1000
+$ alethic resume --budget 1000
 ## Relevant architecture and decisions
 - Rotate sessions on reset via per-user token_version. [dec-auth-session-rotation] ⚠ may be stale: apps/api/auth/refresh.ts changed 184 lines since anchor
 - Refresh tokens cached in Redis for 15 minutes. [kn-refresh-tokens-cached-in-redis] ⚠ may be stale
 ...
 
-$ threadline doctor
+$ alethic doctor
 warning  kn-refresh-tokens-cached-in-redis  needs_reverification (apps/api/auth/refresh.ts: +120/-64)
-         fix: confirm the fact still holds, then `threadline verify kn-refresh-tokens-cached-in-redis`,
-              or mark it deprecated: `threadline knowledge update kn-refresh-tokens-cached-in-redis --status deprecated`
+         fix: confirm the fact still holds, then `alethic verify kn-refresh-tokens-cached-in-redis`,
+              or mark it deprecated: `alethic knowledge update kn-refresh-tokens-cached-in-redis --status deprecated`
 ```
 
 The agent is warned before it builds on a fact that no longer holds.
@@ -611,15 +611,15 @@ You do not need the CLI to write a valid checkpoint.
    git status --porcelain | head -1                   # any output means dirty: true
    git diff --name-only $(git merge-base main HEAD)   # changed_paths (includes uncommitted edits)
    ```
-2. Create `.threadline/checkpoints/cp-<task-slug>-<yyyymmdd>t<hhmmss>z.yaml`. The `id` MUST match the file name.
+2. Create `.alethic/checkpoints/cp-<task-slug>-<yyyymmdd>t<hhmmss>z.yaml`. The `id` MUST match the file name.
 3. Fill in the required fields: `id`, `kind: checkpoint`, `schema_version: 1`, `summary`, `status: recorded`, `confidence` (use `agent-reported`, or `inferred` when reconstructing from history), `created_by.agent` (`human` if you are writing it yourself), `created_at` (UTC, ending in `Z`), `task`, `git.head`, `git.dirty`, and `next_safe_action`. Quote shas.
 4. Add whatever else helps the next person: `done`, `failed_approaches`, `open_questions`, `receipts`. Leave out anything private (§13).
-5. Validate with `threadline validate`, or without Threadline by converting the YAML to JSON and checking it against `schemas/checkpoint.schema.json` with any JSON Schema 2020-12 validator (register `schemas/common.schema.json` too).
+5. Validate with `alethic validate`, or without Aletheic by converting the YAML to JSON and checking it against `schemas/checkpoint.schema.json` with any JSON Schema 2020-12 validator (register `schemas/common.schema.json` too).
 6. Commit it.
 
 Use the example in §6.4 as a template. For contrast, this is **invalid**: it has no `git.head`, and its changed path is absolute.
 
-<!-- threadline:schema=checkpoint expect=invalid -->
+<!-- alethic:schema=checkpoint expect=invalid -->
 ```yaml
 id: cp-bad-example-20260913t000000z
 kind: checkpoint
@@ -641,7 +641,7 @@ next_safe_action: Nothing.
 
 And this decision is invalid because it claims `human-confirmed` without naming a human:
 
-<!-- threadline:schema=decision expect=invalid -->
+<!-- alethic:schema=decision expect=invalid -->
 ```yaml
 id: dec-unbacked-claim
 kind: decision
@@ -661,10 +661,10 @@ created_at: "2026-09-13T00:00:00Z"
 
 YAML examples in this document and in `docs/adapters/*.md` are validated by the test suite (`test/spec/spec-examples.test.ts`). The convention is strict so that any tool extracts the same examples:
 
-- An example is checked **only** if the line directly before its opening fence is exactly `<!-- threadline:schema=<name> -->` or `<!-- threadline:schema=<name> expect=invalid -->`, where `<name>` is one of `manifest`, `task`, `decision`, `knowledge`, `checkpoint`, `receipt`.
+- An example is checked **only** if the line directly before its opening fence is exactly `<!-- alethic:schema=<name> -->` or `<!-- alethic:schema=<name> expect=invalid -->`, where `<name>` is one of `manifest`, `task`, `decision`, `knowledge`, `checkpoint`, `receipt`.
 - The marker MUST start at column 0, with exactly one space inside each comment delimiter.
 - The next line MUST be exactly three backticks followed by `yaml`, with no blank line between marker and fence. The block ends at the next line consisting of exactly three backticks.
 - Untagged YAML blocks are illustrative and ignored.
 - Markers inside other code fences are ignored.
-- Any comment line starting with `<!--` and containing `threadline:schema` that does not match the exact form, a marker not followed by a yaml fence, or an unknown schema name fails the test.
+- Any comment line starting with `<!--` and containing `alethic:schema` that does not match the exact form, a marker not followed by a yaml fence, or an unknown schema name fails the test.
 - A block marked `expect=invalid` MUST fail schema validation. All other tagged blocks MUST pass.

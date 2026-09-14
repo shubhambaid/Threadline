@@ -59,14 +59,14 @@ export async function prepareTask(
   const { manifest, findings } = await loadManifest(root);
   if (!manifest) {
     const problems = findings.map((f) => `${f.path ?? f.file}: ${f.message}`).join("; ");
-    throw new UsageError(`The manifest is invalid (${problems}). Run \`threadline validate\`.`);
+    throw new UsageError(`The manifest is invalid (${problems}). Run \`alethic validate\`.`);
   }
 
   const index = await loadRecordIndex(root);
   const git = await readGitState(root, manifest);
   const task = options.task
     ? requireRecord(index, options.task, "task", "--task")
-    : inferTask(index, options.agent ?? io.env.THREADLINE_AGENT, git.branch);
+    : inferTask(index, options.agent ?? io.env.ALETHIC_AGENT, git.branch);
 
   const collected = await collect(root, index, task, git, manifest);
   const staleness = await createStalenessContext(root, manifest);
@@ -186,7 +186,7 @@ function inferTask(
   if (onBranch.length === 1 && onBranch[0]) return onBranch[0];
   if (open.length === 1 && open[0]) return open[0];
   if (open.length === 0) {
-    throw new UsageError("No open tasks to resume. Start one with `threadline task start`.");
+    throw new UsageError("No open tasks to resume. Start one with `alethic task start`.");
   }
   throw new UsageError(
     `Several open tasks. Pass --task <id>: ${open.map((record) => record.data.id).join(", ")}`,

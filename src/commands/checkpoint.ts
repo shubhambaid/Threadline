@@ -55,7 +55,7 @@ async function inferTask(
   }
   if (active.length === 0) {
     throw new UsageError(
-      "No active task to checkpoint. Pass --task <id>, or start one with `threadline task start`.",
+      "No active task to checkpoint. Pass --task <id>, or start one with `alethic task start`.",
     );
   }
   const candidates = (mine.length > 0 ? mine : active).map((record) => record.data.id);

@@ -12,7 +12,7 @@ import {
 
 const NOW = "2026-09-13T21:00:00Z";
 const LATER = "2026-09-14T21:00:00Z";
-const DECISION_FILE = ".threadline/decisions/dec-auth-refresh-cache.yaml";
+const DECISION_FILE = ".alethic/decisions/dec-auth-refresh-cache.yaml";
 
 interface DoctorReport {
   ok: boolean;
@@ -27,14 +27,14 @@ function rewrite(lines: number, prefix: string): string {
 }
 
 async function validateJson(root: string, at = NOW) {
-  const result = await cli(["validate", "--json"], { cwd: root, env: { THREADLINE_NOW: at } });
+  const result = await cli(["validate", "--json"], { cwd: root, env: { ALETHIC_NOW: at } });
   return JSON.parse(result.stdout) as { findings: Finding[]; errors: number; warnings: number };
 }
 
 async function doctor(root: string, args: string[] = [], at = NOW) {
   const result = await cli(["doctor", "--json", ...args], {
     cwd: root,
-    env: { THREADLINE_NOW: at, THREADLINE_AGENT: "gemini" },
+    env: { ALETHIC_NOW: at, ALETHIC_AGENT: "gemini" },
   });
   return {
     code: result.code,
@@ -47,7 +47,7 @@ function codes(findings: readonly Finding[]): string[] {
   return findings.map((f) => f.code).sort();
 }
 
-describe("staleness in validate, and threadline verify", () => {
+describe("staleness in validate, and alethic verify", () => {
   it("warns about changed evidence and re-anchors only on an explicit verify", async () => {
     const repo = await initializedRepo();
     expectOk(
@@ -89,7 +89,7 @@ describe("staleness in validate, and threadline verify", () => {
           "May be stale: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored",
       }),
     ]);
-    expect(stale.findings[0]?.hint).toContain("threadline verify dec-auth-refresh-cache");
+    expect(stale.findings[0]?.hint).toContain("alethic verify dec-auth-refresh-cache");
 
     const verified = expectOk(
       await cli(["verify", "dec-auth-refresh-cache"], as(repo, "claude-code")),
@@ -156,7 +156,7 @@ describe("staleness in validate, and threadline verify", () => {
     const broken = await cli(["verify", "kn-refresh-redis"], codex);
     expect(broken.code).toBe(2);
     expect(broken.stderr).toContain('evidence.files "apps/api/auth/refresh.ts" does not exist');
-    expect(broken.stderr).toContain("Remove it from .threadline/knowledge/kn-refresh-redis.yaml");
+    expect(broken.stderr).toContain("Remove it from .alethic/knowledge/kn-refresh-redis.yaml");
 
     expectOk(
       await cli(["knowledge", "update", "kn-refresh-redis", "--status", "deprecated"], codex),
@@ -171,7 +171,7 @@ describe("staleness in validate, and threadline verify", () => {
   });
 });
 
-describe("threadline doctor", () => {
+describe("alethic doctor", () => {
   it("reports contradictions and overlapping claims, and fixes only mechanical problems", async () => {
     const repo = await initializedRepo();
     const codex = as(repo, "codex");
@@ -195,7 +195,7 @@ describe("threadline doctor", () => {
     const validation = await validateJson(repo.root);
     expect(codes(validation.findings)).toEqual(["contradiction"]);
     expect(validation.findings[0]).toMatchObject({
-      file: ".threadline/decisions/dec-store-redis.yaml",
+      file: ".alethic/decisions/dec-store-redis.yaml",
       message:
         "Accepted decisions dec-store-postgres and dec-store-redis both decide auth.session-store for overlapping paths, and neither supersedes the other",
     });
@@ -204,7 +204,7 @@ describe("threadline doctor", () => {
     expect(first.code).toBe(0);
     expect(codes(first.report.findings)).toEqual(["contradiction", "overlapping-claim"]);
     expect(first.report.findings.find((f) => f.code === "contradiction")?.command).toBe(
-      "threadline decision update dec-store-postgres --status superseded",
+      "alethic decision update dec-store-postgres --status superseded",
     );
 
     expectOk(
@@ -237,7 +237,7 @@ describe("threadline doctor", () => {
       "Marked dec-store-redis superseded: dec-store-tokens supersedes it.",
     ]);
     expect(fixed.report.findings).toEqual([]);
-    expect(readRecord(repo, ".threadline/tasks/task-rework-sessions.yaml")).toMatchObject({
+    expect(readRecord(repo, ".alethic/tasks/task-rework-sessions.yaml")).toMatchObject({
       status: "paused",
       owner: { agent: "codex" },
     });
@@ -267,7 +267,7 @@ describe("threadline doctor", () => {
         code: "orphaned-checkpoint",
         message:
           "Written after task-audit was closed (done); its next action may be unfinished work: Write the audit table migration",
-        command: expect.stringMatching(/^threadline checkpoint show cp-audit-/),
+        command: expect.stringMatching(/^alethic checkpoint show cp-audit-/),
       }),
     ]);
   });
@@ -278,9 +278,9 @@ describe("threadline doctor", () => {
     expect(clean.stdout).toBe("✓ No problems found in 0 records.\n");
 
     expectOk(await cli(["task", "start", "Rework sessions"], as(repo, "codex")));
-    const result = await cli(["doctor"], { cwd: repo.root, env: { THREADLINE_NOW: LATER } });
+    const result = await cli(["doctor"], { cwd: repo.root, env: { ALETHIC_NOW: LATER } });
     expect(result.code).toBe(1);
-    expect(result.stdout).toContain("fixable: threadline doctor --fix");
+    expect(result.stdout).toContain("fixable: alethic doctor --fix");
     expect(result.stdout).toContain("✗ 1 error, 0 warnings (1 fixable with --fix)");
   });
 });

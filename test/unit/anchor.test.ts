@@ -11,7 +11,7 @@ async function sampleRepo() {
   repo.write("src/nested/c.ts", "export const c = 3;\n");
   repo.write("config/prod.env", "SECRET=1\n");
   repo.write("README.md", "# sample\n");
-  repo.write(".threadline/manifest.yaml", "format_version: 1\n");
+  repo.write(".alethic/manifest.yaml", "format_version: 1\n");
   await repo.commitAll("initial");
   return repo;
 }
@@ -75,7 +75,7 @@ describe("captureAnchor", () => {
     );
   });
 
-  it("excludes forbidden paths, .threadline, unsafe and missing files", async () => {
+  it("excludes forbidden paths, .alethic, unsafe and missing files", async () => {
     const repo = await sampleRepo();
     const { anchor } = await captureAnchor(
       repo.root,

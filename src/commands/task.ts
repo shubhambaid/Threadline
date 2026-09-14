@@ -187,10 +187,10 @@ export async function taskUpdateCommand(
     throw new UsageError("Nothing to update. Pass --status, --next, or --summary.");
   }
   if (status === "active") {
-    throw new UsageError(`Use \`threadline task claim ${id}\` to make a task active.`);
+    throw new UsageError(`Use \`alethic task claim ${id}\` to make a task active.`);
   }
   if (status === "done" || status === "abandoned") {
-    throw new UsageError(`Use \`threadline task close ${id} --status ${status}\` to close a task.`);
+    throw new UsageError(`Use \`alethic task close ${id} --status ${status}\` to close a task.`);
   }
   if (status && !UPDATABLE_STATUSES.includes(status)) {
     throw new UsageError(`--status must be one of: ${UPDATABLE_STATUSES.join(", ")}`);

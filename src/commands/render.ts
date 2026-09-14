@@ -27,8 +27,8 @@ export interface RenderOptions {
 
 const WROTE: Record<Exclude<BlockAction, "unchanged">, string> = {
   created: "Created",
-  inserted: "Added the Threadline block to",
-  updated: "Updated the Threadline block in",
+  inserted: "Added the Aletheic block to",
+  updated: "Updated the Aletheic block in",
 };
 
 const WOULD: Record<Exclude<BlockAction, "unchanged">, string> = {
@@ -44,7 +44,7 @@ export async function renderCommand(io: Io, kind: string, options: RenderOptions
   if (kind === "pr-summary") {
     if (options.write || options.check) {
       throw new UsageError(
-        "pr-summary prints to stdout. Pipe it instead, e.g. `threadline render pr-summary | gh pr create --body-file -`.",
+        "pr-summary prints to stdout. Pipe it instead, e.g. `alethic render pr-summary | gh pr create --body-file -`.",
       );
     }
     const prepared = await prepareTask(io, options);
@@ -65,14 +65,14 @@ export async function renderCommand(io: Io, kind: string, options: RenderOptions
     const targetReal = await realpath(target).catch(() => undefined);
     if (agentsReal && targetReal === agentsReal) {
       throw new UsageError(
-        `${file} is a link to AGENTS.md. Run \`threadline render agents-md --write\` so every agent shares one block.`,
+        `${file} is a link to AGENTS.md. Run \`alethic render agents-md --write\` so every agent shares one block.`,
       );
     }
     if (existing !== undefined && importsAgentsMd(existing) && !hasBlock(existing)) {
       const agents = agentsReal ? await readOptional(agentsReal) : undefined;
       if (agents !== undefined && hasBlock(agents)) {
         io.stdout(
-          `${file} imports AGENTS.md, which already has the Threadline block. Nothing to change.\n`,
+          `${file} imports AGENTS.md, which already has the Aletheic block. Nothing to change.\n`,
         );
         return 0;
       }
@@ -88,7 +88,7 @@ export async function renderCommand(io: Io, kind: string, options: RenderOptions
       return 0;
     }
     const state = existing === undefined ? "does not exist" : "is out of date";
-    io.stderr(`${file} ${state}. Run \`threadline render ${kind} --write\`.\n`);
+    io.stderr(`${file} ${state}. Run \`alethic render ${kind} --write\`.\n`);
     return 1;
   }
   if (!options.write) {

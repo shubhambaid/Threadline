@@ -37,7 +37,7 @@ export async function openWriteContext(
   const { manifest, findings } = await loadManifest(root);
   if (!manifest) {
     const problems = findings.map((f) => `${f.path ?? f.file}: ${f.message}`).join("; ");
-    throw new UsageError(`The manifest is invalid (${problems}). Run \`threadline validate\`.`);
+    throw new UsageError(`The manifest is invalid (${problems}). Run \`alethic validate\`.`);
   }
   const { patterns, invalid } = compileSecretPatterns(manifest.privacy.extra_secret_patterns);
   if (invalid.length > 0) {

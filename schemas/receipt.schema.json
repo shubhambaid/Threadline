@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:receipt",
-  "title": "Threadline receipt",
+  "$id": "urn:alethic:v1:receipt",
+  "title": "Aletheic receipt",
   "type": "object",
   "allOf": [
-    { "$ref": "urn:threadline:v1:common#/$defs/envelope" },
+    { "$ref": "urn:alethic:v1:common#/$defs/envelope" },
     {
       "if": { "required": ["result"], "properties": { "result": { "const": "pass" } } },
       "then": { "properties": { "exit_code": { "const": 0 } } }
@@ -25,14 +25,14 @@
     "command": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "exit_code": { "type": "integer" },
     "result": { "enum": ["pass", "fail", "error"] },
-    "ran_at": { "$ref": "urn:threadline:v1:common#/$defs/timestamp" },
+    "ran_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" },
     "duration_ms": { "type": "integer", "minimum": 0 },
     "git": {
       "type": "object",
       "required": ["head", "dirty"],
       "properties": {
         "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
-        "head": { "$ref": "urn:threadline:v1:common#/$defs/sha" },
+        "head": { "$ref": "urn:alethic:v1:common#/$defs/sha" },
         "dirty": { "type": "boolean" }
       },
       "additionalProperties": false
