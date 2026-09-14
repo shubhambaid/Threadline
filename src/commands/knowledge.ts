@@ -1,14 +1,15 @@
 import { UsageError } from "../core/errors.js";
 import { makeId } from "../core/ids.js";
+import { type FieldSpec, merge, pick, readInputFile } from "../core/input.js";
 import { loadRecordIndex } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertReferences,
   assertSafePaths,
   buildEvidence,
   compact,
-  confidenceFor,
   createdBy,
   type EvidenceFlags,
   openWriteContext,
@@ -24,17 +25,61 @@ export const KNOWLEDGE_CATEGORIES = ["architecture", "operations", "convention",
 export const KNOWLEDGE_STATUSES = ["active", "deprecated"] as const;
 
 export interface KnowledgeAddOptions extends CommonWriteOptions, EvidenceFlags {
-  body: string;
-  category: string;
+  body?: string;
+  category?: string;
   summary?: string;
   paths?: string[];
   link?: string[];
   human?: string;
   id?: string;
   maxFingerprints?: string;
+  fromFile?: string;
 }
 
-export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions): Promise<number> {
+const KNOWLEDGE_FIELDS: FieldSpec = {
+  id: "string",
+  category: "string",
+  body: "string",
+  summary: "string",
+  paths: "strings",
+  links: "strings",
+  evidence: "evidence",
+};
+
+/** Fields from `--from-file`, merged under the flags: flags override strings and add to lists. */
+async function knowledgeOptions(
+  io: Io,
+  options: KnowledgeAddOptions,
+): Promise<KnowledgeAddOptions & { body: string; category: string }> {
+  const input = options.fromFile
+    ? await readInputFile(io, options.fromFile, KNOWLEDGE_FIELDS)
+    : undefined;
+  const evidence = input?.evidence ?? {};
+  const merged = {
+    ...options,
+    id: pick(options.id, input, "id"),
+    category: pick(options.category, input, "category"),
+    body: pick(options.body, input, "body"),
+    summary: pick(options.summary, input, "summary"),
+    paths: merge(options.paths, input, "paths"),
+    link: merge(options.link, input, "links"),
+    evidenceFile: [...(evidence.files ?? []), ...(options.evidenceFile ?? [])],
+    commit: [...(evidence.commits ?? []), ...(options.commit ?? [])],
+    check: [...(evidence.checks ?? []), ...(options.check ?? [])],
+    receipt: [...(evidence.receipts ?? []), ...(options.receipt ?? [])],
+    issue: [...(evidence.issues ?? []), ...(options.issue ?? [])],
+    pr: [...(evidence.prs ?? []), ...(options.pr ?? [])],
+  };
+  for (const field of ["category", "body"] as const) {
+    if (!merged[field]) {
+      throw new UsageError(`--${field} is required (or ${field} in --from-file).`);
+    }
+  }
+  return merged as KnowledgeAddOptions & { body: string; category: string };
+}
+
+export async function knowledgeAddCommand(io: Io, flags: KnowledgeAddOptions): Promise<number> {
+  const options = await knowledgeOptions(io, flags);
   if (!(KNOWLEDGE_CATEGORIES as readonly string[]).includes(options.category)) {
     throw new UsageError(`--category must be one of: ${KNOWLEDGE_CATEGORIES.join(", ")}`);
   }
@@ -51,25 +96,20 @@ export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions):
   const id = options.id ?? makeId("knowledge", options.summary ?? options.body, ctx.now);
   if (index.has(id)) throw new UsageError(`${id} already exists. Pass --id to choose another id.`);
 
-  const { evidence, warnings } = await buildEvidence(
-    ctx,
-    index,
-    options,
-    options.human ? { name: options.human, note: "Confirmed this fact." } : undefined,
-  );
+  const { evidence, warnings } = await buildEvidence(ctx, index, options);
   const anchored = await anchorFor(
     ctx,
     { scopePaths: paths, evidenceFiles: unique(options.evidenceFile) },
     options.maxFingerprints,
   );
 
-  const record = compact({
+  const draft = compact({
     id,
     kind: "knowledge",
     schema_version: 1,
     summary,
     status: "active",
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     category: options.category,
     body: options.body.trim(),
     scope: { paths },
@@ -80,6 +120,12 @@ export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions):
     valid_at: await validAt(root),
     anchor: anchored.anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "knowledge", draft, {
+        name: options.human,
+        note: "Confirmed this fact.",
+      })
+    : draft;
   const file = await saveRecord(ctx, "knowledge", record);
   reportWrite(
     io,
@@ -87,7 +133,7 @@ export async function knowledgeAddCommand(io: Io, options: KnowledgeAddOptions):
       id,
       file,
       warnings: [...warnings, ...anchored.warnings],
-      message: `Created ${file} (${options.category}, ${record.confidence})`,
+      message: `Created ${file} (${options.category}, ${String(record.confidence)})`,
     },
     options.json,
   );

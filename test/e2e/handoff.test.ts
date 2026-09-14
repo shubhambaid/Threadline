@@ -30,7 +30,7 @@ describe("agent handoff", () => {
     await repo.commitAll("wip: bump token_version on reset");
     const headAtCheckpoint = await shortHead(repo);
 
-    const log = path.join(mkdtempSync(path.join(tmpdir(), "threadline-handoff-")), "auth.log");
+    const log = path.join(mkdtempSync(path.join(tmpdir(), "alethic-handoff-")), "auth.log");
     writeFileSync(log, "FAIL refresh token rejected after reset\n  expected 401, received 200\n");
     const failing = JSON.parse(
       expectOk(
@@ -73,7 +73,7 @@ describe("agent handoff", () => {
         as(repo, "codex", "2026-09-13T20:01:00Z"),
       ),
     );
-    await repo.commitAll("threadline: checkpoint session reset");
+    await repo.commitAll("alethic: checkpoint session reset");
 
     // Agent B (Claude Code) starts cold. Its only input is the repository.
     const claude = (at: string) => as(repo, "claude-code", at);
@@ -162,9 +162,9 @@ describe("agent handoff", () => {
     expectOk(
       await cli(["task", "close", TASK_ID, "--status", "done"], claude("2026-09-13T23:40:00Z")),
     );
-    await repo.commitAll("threadline: close session reset");
+    await repo.commitAll("alethic: close session reset");
 
-    expect(readRecord(repo, `.threadline/tasks/${TASK_ID}.yaml`)).toMatchObject({
+    expect(readRecord(repo, `.alethic/tasks/${TASK_ID}.yaml`)).toMatchObject({
       status: "done",
       owner: { agent: "claude-code" },
     });

@@ -14,7 +14,7 @@ import { expectOk, initializedRepo } from "../helpers/workspace.js";
 
 const CITATION =
   /\[(?:task|dec|kn|cp|rcpt)-[a-z0-9-]+\]|\(commit [0-9a-f]{7,}\)|\(receipt rcpt-[a-z0-9-]+\)/;
-const POINTER_LINE = /^- \d+ more( files)?: /;
+const POINTER_LINE = /^- \d+ more( files?)?: /;
 
 let repo: FixtureRepo;
 
@@ -26,7 +26,7 @@ async function resume(target: FixtureRepo, args: string[]): Promise<string> {
   return expectOk(
     await cli(["resume", "--task", RESUME_TASK, ...args], {
       cwd: target.root,
-      env: { THREADLINE_NOW: RESUME_NOW },
+      env: { ALETHIC_NOW: RESUME_NOW },
     }),
   ).stdout;
 }
@@ -67,7 +67,7 @@ function stripFrame(text: string): string {
   return lines.slice(start, end).join("\n");
 }
 
-describe("threadline resume", () => {
+describe("alethic resume", () => {
   it("stays within approximate budgets and keeps the essentials at 1000 tokens", async () => {
     for (const budget of [1000, 2500, 5000]) {
       const text = await resume(repo, ["--budget", String(budget)]);
@@ -87,7 +87,7 @@ describe("threadline resume", () => {
       "Does the mobile client retry refresh on 401?",
     );
     expect(section(small, "Verified behavior and checks run")).toMatch(
-      /`pnpm test auth` failed \(exit 1\) at [0-9a-f]+ \(code unchanged since\)/,
+      /`pnpm test auth` failed \(exit 1\) at [0-9a-f]+ \(code unchanged since, reported\)/,
     );
     const warnings = bullets(small).filter(
       (line) => line.includes("⚠ may be stale") && !POINTER_LINE.test(line),
@@ -188,10 +188,10 @@ describe("threadline resume", () => {
     const inferred = expectOk(
       await cli(["resume", "--budget", "1000"], {
         cwd: repo.root,
-        env: { THREADLINE_NOW: RESUME_NOW },
+        env: { ALETHIC_NOW: RESUME_NOW },
       }),
     );
-    expect(inferred.stdout).toContain(`# Threadline briefing: ${RESUME_TASK}`);
+    expect(inferred.stdout).toContain(`# Aletheic briefing: ${RESUME_TASK}`);
 
     const empty = await initializedRepo();
     const none = await cli(["resume"], { cwd: empty.root });

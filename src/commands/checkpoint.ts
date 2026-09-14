@@ -1,15 +1,16 @@
 import { UsageError } from "../core/errors.js";
 import { makeId } from "../core/ids.js";
+import { type FieldSpec, merge, pick, readInputFile } from "../core/input.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import { checkRepoPath, scopeMatcher } from "../core/paths.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
 import type { LoadedRecord } from "../core/store.js";
 import { NOT_DETERMINED, truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertReferences,
   compact,
-  confidenceFor,
   createdBy,
   openWriteContext,
   parsePair,
@@ -28,6 +29,7 @@ import {
   resolveCommit,
   shortSha,
 } from "../git/git.js";
+import { assessLedger, requireUsable } from "../validate/assess.js";
 import { type Io, requireInitialized } from "./context.js";
 import { type CommonWriteOptions, reportWrite } from "./report.js";
 
@@ -55,7 +57,7 @@ async function inferTask(
   }
   if (active.length === 0) {
     throw new UsageError(
-      "No active task to checkpoint. Pass --task <id>, or start one with `threadline task start`.",
+      "No active task to checkpoint. Pass --task <id>, or start one with `alethic task start`.",
     );
   }
   const candidates = (mine.length > 0 ? mine : active).map((record) => record.data.id);
@@ -74,12 +76,51 @@ export interface CheckpointCreateOptions extends CommonWriteOptions {
   human?: string;
   id?: string;
   maxFingerprints?: string;
+  fromFile?: string;
+}
+
+const CHECKPOINT_FIELDS: FieldSpec = {
+  task: "string",
+  summary: "string",
+  done: "strings",
+  failed_approaches: { pairs: ["approach", "why_failed"] },
+  open_questions: "strings",
+  next_safe_action: "string",
+  receipts: "strings",
+  links: "strings",
+};
+
+/** Fields from `--from-file`, merged under the flags: flags override strings and add to lists. */
+async function withInputFile(
+  io: Io,
+  options: CheckpointCreateOptions,
+): Promise<CheckpointCreateOptions> {
+  if (!options.fromFile) return options;
+  const input = await readInputFile(io, options.fromFile, CHECKPOINT_FIELDS);
+  const failed = (input.pairs.failed_approaches ?? []).map(([approach, why]) => {
+    if (approach.includes("::")) {
+      throw new UsageError('failed_approaches[].approach must not contain "::"');
+    }
+    return `${approach}::${why}`;
+  });
+  return {
+    ...options,
+    task: pick(options.task, input, "task"),
+    summary: pick(options.summary, input, "summary"),
+    next: pick(options.next, input, "next_safe_action"),
+    done: merge(options.done, input, "done"),
+    failed: [...failed, ...(options.failed ?? [])],
+    question: merge(options.question, input, "open_questions"),
+    receipt: merge(options.receipt, input, "receipts"),
+    link: merge(options.link, input, "links"),
+  };
 }
 
 export async function checkpointCreateCommand(
   io: Io,
-  options: CheckpointCreateOptions,
+  flags: CheckpointCreateOptions,
 ): Promise<number> {
+  const options = await withInputFile(io, flags);
   const root = await requireInitialized(io);
   const ctx = await openWriteContext(root, options.agent, io.env);
   const index = await loadRecordIndex(root);
@@ -148,7 +189,7 @@ export async function checkpointCreateCommand(
     options.maxFingerprints,
   );
 
-  const record = compact({
+  const draft = compact({
     id,
     kind: "checkpoint",
     schema_version: 1,
@@ -157,7 +198,7 @@ export async function checkpointCreateCommand(
       280,
     ),
     status: "recorded",
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     task: taskId,
     git: { branch, base, head: headShort, dirty, changed_paths: changedPaths },
     done: unique(options.done),
@@ -167,14 +208,17 @@ export async function checkpointCreateCommand(
     receipts,
     scope: { paths: scopePaths },
     links,
-    evidence: options.human
-      ? { human: [{ name: options.human, at: ctx.timestamp, note: "Reviewed this checkpoint." }] }
-      : undefined,
     created_by: createdBy(ctx, options.human),
     created_at: ctx.timestamp,
     valid_at: headShort,
     anchor: anchored.anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "checkpoint", draft, {
+        name: options.human,
+        note: "Reviewed this checkpoint.",
+      })
+    : draft;
   const file = await saveRecord(ctx, "checkpoint", record);
 
   const warnings = [...anchored.warnings];
@@ -214,7 +258,7 @@ export async function checkpointListCommand(
   options: { task?: string; json?: boolean },
 ): Promise<number> {
   const root = await requireInitialized(io);
-  const index = await loadRecordIndex(root);
+  const { index } = await assessLedger(root);
   const checkpoints: CheckpointSummary[] = [...index.values()]
     .filter(
       (record) =>
@@ -250,8 +294,9 @@ export async function checkpointShowCommand(
   options: { json?: boolean },
 ): Promise<number> {
   const root = await requireInitialized(io);
-  const index = await loadRecordIndex(root);
-  const checkpoint = requireRecord(index, id, "checkpoint");
+  const ledger = await assessLedger(root);
+  const { index } = ledger;
+  const checkpoint = requireUsable(ledger, id, "checkpoint");
   const cp = checkpoint.data;
   const taskId = asString(cp.task) ?? "";
   const task = index.get(taskId);

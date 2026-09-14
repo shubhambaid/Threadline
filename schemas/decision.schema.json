@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:decision",
-  "title": "Threadline decision",
+  "$id": "urn:alethic:v1:decision",
+  "title": "Aletheic decision",
   "type": "object",
-  "allOf": [{ "$ref": "urn:threadline:v1:common#/$defs/envelope" }],
+  "allOf": [{ "$ref": "urn:alethic:v1:common#/$defs/envelope" }],
   "required": ["topic", "chosen", "rationale"],
   "properties": {
     "id": { "type": "string", "pattern": "^dec-" },
@@ -15,7 +15,7 @@
       "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$",
       "maxLength": 120
     },
-    "chosen": { "$ref": "urn:threadline:v1:common#/$defs/text" },
+    "chosen": { "$ref": "urn:alethic:v1:common#/$defs/text" },
     "rationale": { "type": "string", "minLength": 1, "maxLength": 4000 },
     "alternatives": {
       "type": "array",
@@ -23,8 +23,8 @@
         "type": "object",
         "required": ["option", "rejected_because"],
         "properties": {
-          "option": { "$ref": "urn:threadline:v1:common#/$defs/text" },
-          "rejected_because": { "$ref": "urn:threadline:v1:common#/$defs/text" }
+          "option": { "$ref": "urn:alethic:v1:common#/$defs/text" },
+          "rejected_because": { "$ref": "urn:alethic:v1:common#/$defs/text" }
         },
         "additionalProperties": false
       }

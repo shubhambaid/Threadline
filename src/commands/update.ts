@@ -2,6 +2,7 @@ import { UsageError } from "../core/errors.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import { openWriteContext, saveRecord } from "../core/write.js";
+import { reconcileConfirmation } from "../trust/claims.js";
 import { type Io, requireInitialized } from "./context.js";
 import { type CommonWriteOptions, reportWrite } from "./report.js";
 
@@ -27,16 +28,21 @@ export async function updateRecordCommand(
   const root = await requireInitialized(io);
   const ctx = await openWriteContext(root, options.agent, io.env);
   const record = requireRecord(await loadRecordIndex(root), id, kind);
-  const updated = {
+  const { record: updated, warning } = reconcileConfirmation(kind, id, record.data, {
     ...record.data,
     ...(options.status ? { status: options.status } : {}),
     ...(options.summary ? { summary: truncate(options.summary, 280) } : {}),
     updated_at: ctx.timestamp,
-  };
-  const file = await saveRecord(ctx, kind, updated, { overwrite: true });
+  });
+  const file = await saveRecord(ctx, kind, updated, { overwrite: true, expected: record.text });
   reportWrite(
     io,
-    { id, file, message: `Updated ${file}${options.status ? ` (status: ${options.status})` : ""}` },
+    {
+      id,
+      file,
+      warnings: warning ? [warning] : [],
+      message: `Updated ${file}${options.status ? ` (status: ${options.status})` : ""}`,
+    },
     options.json,
   );
   return 0;

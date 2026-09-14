@@ -2,11 +2,11 @@
 
 `AGENTS.md` (and `CLAUDE.md`, `GEMINI.md`) is the right place for **how to work in this repository**: build commands, conventions, where things live. Those change rarely and apply to every task.
 
-Threadline is for **where the work stands**: this task's goal, the approach that failed an hour ago, the decision made yesterday, the test that passed on commit `aa50b9e`. That changes constantly and belongs to specific tasks and code.
+Aletheic is for **where the work stands**: this task's goal, the approach that failed an hour ago, the decision made yesterday, the test that passed on commit `aa50b9e`. That changes constantly and belongs to specific tasks and code.
 
 Putting the second kind into the first kind of file runs into these limits:
 
-| Need | Instruction file | Threadline |
+| Need | Instruction file | Aletheic |
 |---|---|---|
 | Read by every agent | Each agent reads its own file by default: Codex `AGENTS.md`, Claude Code `CLAUDE.md`, Gemini CLI `GEMINI.md`. Sharing needs imports or settings. | Any agent that can run a command, or any MCP client, reads the same records. |
 | Size | Always loaded in full and competes for a capped budget (Codex reads at most 32 KiB by default). | `resume` selects and compresses what is relevant to one task, within an approximate budget. |
@@ -20,8 +20,8 @@ Putting the second kind into the first kind of file runs into these limits:
 
 ## How they work together
 
-Threadline uses the instruction file for the one thing only it can do: tell each agent to start from `threadline resume`. `threadline render agents-md --write` maintains a block of about fifteen lines, and nothing else in the file is touched. Project conventions stay in `AGENTS.md`, and task state moves to `.threadline/`.
+Aletheic uses the instruction file for the one thing only it can do: tell each agent to start from `alethic resume`. `alethic render agents-md --write` maintains a block of about fifteen lines, and nothing else in the file is touched. Project conventions stay in `AGENTS.md`, and task state moves to `.alethic/`.
 
 ## When an instruction file is enough
 
-If one agent works on short tasks that finish in a single session, and nobody else continues its work, an instruction file is all you need. Threadline pays off when work spans sessions, agents, or people: when "what did the last session learn?" has an answer worth keeping.
+If one agent works on short tasks that finish in a single session, and nobody else continues its work, an instruction file is all you need. Aletheic pays off when work spans sessions, agents, or people: when "what did the last session learn?" has an answer worth keeping.

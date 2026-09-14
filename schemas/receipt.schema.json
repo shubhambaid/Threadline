@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:receipt",
-  "title": "Threadline receipt",
+  "$id": "urn:alethic:v1:receipt",
+  "title": "Aletheic receipt",
   "type": "object",
   "allOf": [
-    { "$ref": "urn:threadline:v1:common#/$defs/envelope" },
+    { "$ref": "urn:alethic:v1:common#/$defs/envelope" },
     {
       "if": { "required": ["result"], "properties": { "result": { "const": "pass" } } },
       "then": { "properties": { "exit_code": { "const": 0 } } }
@@ -25,14 +25,15 @@
     "command": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "exit_code": { "type": "integer" },
     "result": { "enum": ["pass", "fail", "error"] },
-    "ran_at": { "$ref": "urn:threadline:v1:common#/$defs/timestamp" },
+    "ran_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" },
     "duration_ms": { "type": "integer", "minimum": 0 },
     "git": {
+      "description": "Code state when the check started (receipt run) or when it was reported (receipt add).",
       "type": "object",
       "required": ["head", "dirty"],
       "properties": {
         "branch": { "type": "string", "minLength": 1, "maxLength": 255 },
-        "head": { "$ref": "urn:threadline:v1:common#/$defs/sha" },
+        "head": { "$ref": "urn:alethic:v1:common#/$defs/sha" },
         "dirty": { "type": "boolean" }
       },
       "additionalProperties": false
@@ -47,8 +48,62 @@
       "required": ["source"],
       "properties": {
         "source": { "enum": ["local", "ci-env", "github-attestation"] },
+        "capture": {
+          "description": "observed: `alethic receipt run` executed the command and captured the code state before and after. imported: the result was reported with `alethic receipt add`. Receipts without it count as imported.",
+          "enum": ["observed", "imported"]
+        },
         "run_url": { "type": "string", "maxLength": 500 },
         "attestation": { "type": "string", "maxLength": 500 }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "description": "How an observed command ran. Environment variables are never recorded.",
+      "type": "object",
+      "required": ["argv", "started_at", "finished_at"],
+      "properties": {
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": { "type": "string", "maxLength": 1000 }
+        },
+        "cwd": {
+          "description": "Working directory, relative to the repository root.",
+          "anyOf": [{ "const": "." }, { "$ref": "urn:alethic:v1:common#/$defs/repoPath" }]
+        },
+        "started_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" },
+        "finished_at": { "$ref": "urn:alethic:v1:common#/$defs/timestamp" },
+        "signal": { "type": "string", "minLength": 1, "maxLength": 20 }
+      },
+      "additionalProperties": false
+    },
+    "state": {
+      "description": "Content digests of the files the command could see, taken just before and just after it ran.",
+      "type": "object",
+      "required": ["coverage", "file_limit", "before", "after", "changed_during_run"],
+      "properties": {
+        "coverage": {
+          "description": "workspace: every tracked and untracked (not ignored) file outside .alethic/ and forbidden paths. scope: only files matching scope.paths. partial: more files matched than file_limit, so only the first file_limit (in path order) were digested.",
+          "enum": ["workspace", "scope", "partial"]
+        },
+        "file_limit": { "type": "integer", "minimum": 1 },
+        "before": { "$ref": "#/$defs/snapshot" },
+        "after": { "$ref": "#/$defs/snapshot" },
+        "changed_during_run": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "snapshot": {
+      "type": "object",
+      "required": ["head", "dirty", "digest", "files"],
+      "properties": {
+        "head": { "$ref": "urn:alethic:v1:common#/$defs/sha" },
+        "dirty": { "type": "boolean" },
+        "digest": { "$ref": "urn:alethic:v1:common#/$defs/objectId" },
+        "files": { "type": "integer", "minimum": 0 }
       },
       "additionalProperties": false
     }

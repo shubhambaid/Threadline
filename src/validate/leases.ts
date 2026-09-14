@@ -19,7 +19,7 @@ export function checkLeases(records: readonly LoadedRecord[], now: Date): Findin
       file: record.file,
       path: "owner.lease_expires_at",
       message: `Lease held by ${asString(owner?.agent) ?? "unknown agent"} expired at ${lease}`,
-      hint: `Renew with \`threadline task claim ${id}\`, or hand off: write a checkpoint and set status: paused.`,
+      hint: `Renew with \`alethic task claim ${id}\`, or hand off: write a checkpoint and set status: paused.`,
     });
   }
   return findings;

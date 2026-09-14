@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { hashWorkingTreeFiles, headCommit, listTrackedFiles } from "../git/git.js";
-import { checkRepoPath, expandScope, isGlob, scopeMatcher, THREADLINE_DIR } from "./paths.js";
+import { ALETHIC_DIR, checkRepoPath, expandScope, isGlob, scopeMatcher } from "./paths.js";
 
 export interface Anchor {
   commit: string;
@@ -41,7 +41,7 @@ export async function captureAnchor(
 
   const forbidden = scopeMatcher(limits.forbiddenGlobs);
   const excluded = (file: string) =>
-    file.startsWith(`${THREADLINE_DIR}/`) || checkRepoPath(file) !== undefined || forbidden(file);
+    file.startsWith(`${ALETHIC_DIR}/`) || checkRepoPath(file) !== undefined || forbidden(file);
 
   const evidence = [...new Set(input.evidenceFiles ?? [])]
     .filter((file) => !isGlob(file) && !excluded(file))

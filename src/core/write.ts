@@ -1,12 +1,13 @@
 import { headCommit, resolveCommit, shortSha } from "../git/git.js";
+import { claimDigest } from "../trust/claims.js";
 import { validateAgainst } from "../validate/schema.js";
 import { compileSecretPatterns, type SecretPattern, scanForSecrets } from "../validate/secrets.js";
 import { type Anchor, type AnchorInput, captureAnchor } from "./anchor.js";
 import { now as clockNow, toTimestamp } from "./clock.js";
 import { UsageError } from "./errors.js";
-import { resolveAgent } from "./identity.js";
+import { resolveIdentity } from "./identity.js";
 import type { RecordKind } from "./ids.js";
-import { isPlainObject } from "./json.js";
+import { asArray, asObject, isPlainObject } from "./json.js";
 import { loadManifest, type Manifest } from "./manifest.js";
 import {
   checkContainment,
@@ -16,13 +17,18 @@ import {
   scopeMatcher,
 } from "./paths.js";
 import { requireRecord } from "./records.js";
-import { type LoadedRecord, writeRecord } from "./store.js";
+import { type LoadedRecord, type WriteOptions, writeRecord } from "./store.js";
 
 /** Shared state for commands that write records. */
 export interface WriteContext {
   root: string;
   manifest: Manifest;
+  /** The agent tool writing, e.g. codex. */
   agent: string;
+  /** The session of that tool (ALETHIC_SESSION), when known. */
+  session?: string;
+  /** The model behind the session (ALETHIC_MODEL), only when stated. */
+  model?: string;
   now: Date;
   timestamp: string;
   patterns: SecretPattern[];
@@ -33,11 +39,11 @@ export async function openWriteContext(
   agentFlag: string | undefined,
   env: NodeJS.ProcessEnv,
 ): Promise<WriteContext> {
-  const agent = resolveAgent(agentFlag, env);
+  const identity = resolveIdentity(agentFlag, env);
   const { manifest, findings } = await loadManifest(root);
   if (!manifest) {
     const problems = findings.map((f) => `${f.path ?? f.file}: ${f.message}`).join("; ");
-    throw new UsageError(`The manifest is invalid (${problems}). Run \`threadline validate\`.`);
+    throw new UsageError(`The manifest is invalid (${problems}). Run \`alethic validate\`.`);
   }
   const { patterns, invalid } = compileSecretPatterns(manifest.privacy.extra_secret_patterns);
   if (invalid.length > 0) {
@@ -46,7 +52,14 @@ export async function openWriteContext(
     );
   }
   const at = clockNow(env);
-  return { root, manifest, agent, now: at, timestamp: toTimestamp(at), patterns };
+  return {
+    root,
+    manifest,
+    ...identity,
+    now: at,
+    timestamp: toTimestamp(at),
+    patterns,
+  };
 }
 
 const KEEP_EMPTY = new Set(["fingerprints"]);
@@ -169,7 +182,6 @@ export async function buildEvidence(
   ctx: WriteContext,
   index: ReadonlyMap<string, LoadedRecord>,
   flags: EvidenceFlags,
-  human?: { name: string; note: string },
 ): Promise<{ evidence: Record<string, unknown>; warnings: string[] }> {
   const warnings: string[] = [];
   const files = unique(flags.evidenceFile);
@@ -196,28 +208,58 @@ export async function buildEvidence(
     receipts,
     issues: unique(flags.issue),
     prs: unique(flags.pr),
-    human: human ? [{ name: human.name, at: ctx.timestamp, note: human.note }] : undefined,
   });
   return { evidence, warnings };
 }
 
-export function confidenceFor(human: string | undefined): "human-confirmed" | "agent-reported" {
-  return human ? "human-confirmed" : "agent-reported";
+/**
+ * Records that a named person confirmed this exact claim, and marks the record `human-confirmed`.
+ * The confirmation says who recorded it and is bound to a digest of the claim, so a later edit
+ * leaves it visibly outdated. The name is an attribution by `ctx.agent`, not an authenticated
+ * identity (docs/spec.md §8).
+ */
+export function addHumanConfirmation(
+  ctx: WriteContext,
+  kind: RecordKind,
+  record: Record<string, unknown>,
+  human: { name: string; note: string },
+): Record<string, unknown> {
+  const evidence = asObject(record.evidence) ?? {};
+  return {
+    ...record,
+    confidence: "human-confirmed",
+    evidence: {
+      ...evidence,
+      human: [
+        ...asArray(evidence.human),
+        {
+          name: human.name,
+          at: ctx.timestamp,
+          note: human.note,
+          recorded_by: ctx.agent,
+          authentication: "none",
+          claim_digest: claimDigest(kind, record),
+        },
+      ],
+    },
+  };
 }
 
+/** `created_by`: the agent, and its session and model when known. */
 export function createdBy(ctx: WriteContext, human: string | undefined): Record<string, unknown> {
-  return compact({ agent: ctx.agent, human });
+  return compact({ agent: ctx.agent, session: ctx.session, model: ctx.model, human });
 }
 
 /**
  * Validates and writes a record. Nothing is written if it fails the schema or contains
- * anything that looks like a secret. Secret values are never echoed.
+ * anything that looks like a secret. Secret values are never echoed. Pass `expected` (the text the
+ * change was based on) when replacing a record, so a competing write is refused, not overwritten.
  */
 export async function saveRecord(
   ctx: WriteContext,
   kind: RecordKind,
   record: Record<string, unknown>,
-  options: { overwrite?: boolean } = {},
+  options: WriteOptions = {},
 ): Promise<string> {
   const secrets = scanForSecrets(record, ctx.patterns);
   if (secrets.length > 0) {

@@ -19,7 +19,7 @@ describe("resume golden briefings", () => {
     it(`matches the committed briefing at ${budget} tokens`, async () => {
       const result = await cli(
         ["resume", "--task", RESUME_TASK, "--budget", String(budget), "--target", "claude-code"],
-        { cwd: repo.root, env: { THREADLINE_NOW: RESUME_NOW } },
+        { cwd: repo.root, env: { ALETHIC_NOW: RESUME_NOW } },
       );
       const briefing = expectOk(result).stdout.replace(/\b[0-9a-f]{7,40}\b/g, "<sha>");
       await expect(briefing).toMatchFileSnapshot(`./__snapshots__/resume-${budget}.md`);

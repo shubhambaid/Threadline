@@ -42,7 +42,7 @@ function knowledge(id: string, extra: Record<string, unknown> = {}): string {
   });
 }
 
-describe("threadline validate", () => {
+describe("alethic validate", () => {
   it("accepts a valid repository", async () => {
     const repo = await createFixtureRepo("valid");
     const { code, report } = await validate(repo);
@@ -58,14 +58,14 @@ describe("threadline validate", () => {
     expect(codes(report, "error")).toEqual(["id-mismatch", "schema", "wrong-extension", "yaml"]);
     expect(report.findings).toContainEqual(
       expect.objectContaining({
-        file: ".threadline/tasks/task-no-intent.yaml",
+        file: ".alethic/tasks/task-no-intent.yaml",
         path: "intent",
         message: "is required",
       }),
     );
     expect(report.findings).toContainEqual(
       expect.objectContaining({
-        file: ".threadline/decisions/dec-bad-status.yaml",
+        file: ".alethic/decisions/dec-bad-status.yaml",
         path: "status",
         message: "must be one of: proposed, accepted, superseded",
       }),
@@ -106,7 +106,7 @@ describe("threadline validate", () => {
       expect.objectContaining({
         severity: "error",
         code: "expired-lease",
-        file: ".threadline/tasks/task-abandoned.yaml",
+        file: ".alethic/tasks/task-abandoned.yaml",
         path: "owner.lease_expires_at",
       }),
     ]);
@@ -125,7 +125,7 @@ describe("threadline validate", () => {
     const repo = await createFixtureRepo("valid");
     const token = `gh${"p_"}${"Z9".repeat(18)}`;
     repo.write(
-      ".threadline/knowledge/kn-leaked.yaml",
+      ".alethic/knowledge/kn-leaked.yaml",
       knowledge("kn-leaked", { body: `Deploy with GITHUB_TOKEN=${token}.` }),
     );
     const { code, report, stdout } = await validate(repo);
@@ -133,7 +133,7 @@ describe("threadline validate", () => {
     expect(report.findings).toEqual([
       expect.objectContaining({
         code: "secret",
-        file: ".threadline/knowledge/kn-leaked.yaml",
+        file: ".alethic/knowledge/kn-leaked.yaml",
         path: "body",
         message: "Looks like a GitHub token",
       }),
@@ -143,16 +143,16 @@ describe("threadline validate", () => {
 
   it("rejects unsafe, escaping, and forbidden paths", async () => {
     const repo = await createFixtureRepo("valid");
-    const outside = mkdtempSync(path.join(tmpdir(), "threadline-outside-"));
+    const outside = mkdtempSync(path.join(tmpdir(), "alethic-outside-"));
     writeFileSync(path.join(outside, "secret.txt"), "x");
     symlinkSync(outside, path.join(repo.root, "linked"));
     repo.write("config/prod.env", "X=1\n");
     repo.write(
-      ".threadline/manifest.yaml",
+      ".alethic/manifest.yaml",
       'format_version: 1\nproject:\n  name: fixture-valid\nprivacy:\n  forbidden_globs:\n    - "**/*.env"\n',
     );
     repo.write(
-      ".threadline/knowledge/kn-unsafe.yaml",
+      ".alethic/knowledge/kn-unsafe.yaml",
       knowledge("kn-unsafe", {
         scope: { paths: ["../outside"] },
         evidence: { files: ["linked/secret.txt", "config/prod.env"] },
@@ -167,7 +167,7 @@ describe("threadline validate", () => {
     const repo = await createFixtureRepo("valid");
     const file = path.join(
       repo.root,
-      ".threadline/checkpoints/cp-session-reset-20260913t201500z.yaml",
+      ".alethic/checkpoints/cp-session-reset-20260913t201500z.yaml",
     );
     writeFileSync(file, readFileSync(file, "utf8").replace("Compare token_version", "Rewrite"));
     const { code, report } = await validate(repo);
@@ -180,9 +180,9 @@ describe("threadline validate", () => {
     const result = await cli(["validate"], { cwd: repo.root });
     expect(result.code).toBe(1);
     expect(result.stdout).toContain(
-      "error   .threadline/tasks/task-abandoned.yaml:owner.lease_expires_at: Lease held by codex expired at 2026-09-13T20:00:00Z",
+      "error   .alethic/tasks/task-abandoned.yaml:owner.lease_expires_at: Lease held by codex expired at 2026-09-13T20:00:00Z",
     );
-    expect(result.stdout).toContain("hint: Renew with `threadline task claim task-abandoned`");
+    expect(result.stdout).toContain("hint: Renew with `alethic task claim task-abandoned`");
     expect(result.stdout).toContain("✗ 1 error, 0 warnings in 2 records");
   });
 
@@ -191,6 +191,6 @@ describe("threadline validate", () => {
     await repo.commitAll("empty");
     const result = await cli(["validate"], { cwd: repo.root });
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain("threadline init");
+    expect(result.stderr).toContain("alethic init");
   });
 });

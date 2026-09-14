@@ -6,7 +6,7 @@ import { BLOCK_BEGIN, BLOCK_END, instructionBlock } from "../../src/adapters/blo
 import { cli } from "../helpers/run-cli.js";
 import { as, expectOk, initializedRepo } from "../helpers/workspace.js";
 
-describe("threadline render (instruction files)", () => {
+describe("alethic render (instruction files)", () => {
   it("previews without writing", async () => {
     const repo = await initializedRepo();
     const result = expectOk(await cli(["render", "agents-md"], { cwd: repo.root }));
@@ -39,7 +39,7 @@ describe("threadline render (instruction files)", () => {
     writeFileSync(file, "# Claude notes\n\nUse pnpm, not npm.\n");
 
     expect(expectOk(await cli(["render", "claude-md", "--write"], { cwd: repo.root })).stdout).toBe(
-      "Added the Threadline block to CLAUDE.md.\n",
+      "Added the Aletheic block to CLAUDE.md.\n",
     );
     const written = readFileSync(file, "utf8");
     expect(written.startsWith("# Claude notes\n\nUse pnpm, not npm.\n\n")).toBe(true);
@@ -53,7 +53,7 @@ describe("threadline render (instruction files)", () => {
     expect(check.stderr).toContain("CLAUDE.md is out of date");
 
     expect(expectOk(await cli(["render", "claude-md", "--write"], { cwd: repo.root })).stdout).toBe(
-      "Updated the Threadline block in CLAUDE.md.\n",
+      "Updated the Aletheic block in CLAUDE.md.\n",
     );
     const repaired = readFileSync(file, "utf8");
     expect(repaired).toBe(`${written}\n## Later section\nKeep me.\n`);
@@ -66,7 +66,7 @@ describe("threadline render (instruction files)", () => {
     writeFileSync(file, content);
     const result = await cli(["render", "gemini-md", "--write"], { cwd: repo.root });
     expect(result.code).toBe(2);
-    expect(result.stderr).toContain("GEMINI.md has malformed Threadline markers");
+    expect(result.stderr).toContain("GEMINI.md has malformed Aletheic markers");
     expect(readFileSync(file, "utf8")).toBe(content);
   });
 
@@ -78,7 +78,7 @@ describe("threadline render (instruction files)", () => {
 
     for (const flag of ["--write", "--check"]) {
       const result = expectOk(await cli(["render", "claude-md", flag], { cwd: repo.root }));
-      expect(result.stdout).toContain("imports AGENTS.md, which already has the Threadline block");
+      expect(result.stdout).toContain("imports AGENTS.md, which already has the Aletheic block");
     }
     expect(readFileSync(file, "utf8")).toBe("@AGENTS.md\n\n# Claude-only notes\n");
   });
@@ -91,7 +91,7 @@ describe("threadline render (instruction files)", () => {
     expect(linked.code).toBe(2);
     expect(linked.stderr).toContain("CLAUDE.md is a link to AGENTS.md");
 
-    const outside = path.join(mkdtempSync(path.join(os.tmpdir(), "threadline-outside-")), "x.md");
+    const outside = path.join(mkdtempSync(path.join(os.tmpdir(), "alethic-outside-")), "x.md");
     writeFileSync(outside, "outside\n");
     symlinkSync(outside, path.join(repo.root, "GEMINI.md"));
     const escaped = await cli(["render", "gemini-md", "--write"], { cwd: repo.root });
@@ -108,7 +108,7 @@ describe("threadline render (instruction files)", () => {
   });
 });
 
-describe("threadline render pr-summary", () => {
+describe("alethic render pr-summary", () => {
   it("summarizes the task, decisions, recorded checks, and open work with citations", async () => {
     const repo = await initializedRepo();
     const codex = as(repo, "codex");
@@ -145,7 +145,7 @@ describe("threadline render pr-summary", () => {
         codex,
       ),
     );
-    const log = path.join(mkdtempSync(path.join(os.tmpdir(), "threadline-log-")), "test.log");
+    const log = path.join(mkdtempSync(path.join(os.tmpdir(), "alethic-log-")), "test.log");
     writeFileSync(log, "expected 401, received 200\n");
     expectOk(
       await cli(
@@ -171,12 +171,12 @@ describe("threadline render pr-summary", () => {
 
     const summary = expectOk(await cli(["render", "pr-summary"], codex)).stdout;
     expect(summary).toMatch(/^## Invalidate sessions after password reset\n/);
-    expect(summary).toContain("Threadline task `task-reset-sessions`: active, owner codex.");
+    expect(summary).toContain("Aletheic task `task-reset-sessions`: active, owner codex.");
     expect(summary).toContain(
       "- Store token_version on users. Why: One write per user revokes every session. `dec-auth-session-invalidation` ⚠ unverified",
     );
     expect(summary).toMatch(
-      /- Failed: `pnpm test auth` \(exit 1\) at [0-9a-f]{7,}, code unchanged since\. `rcpt-pnpm-test-auth-[0-9t]+z` ⚠ unverified/,
+      /- Failed: `pnpm test auth` \(exit 1\) at [0-9a-f]{7,}, code unchanged since, reported\. `rcpt-pnpm-test-auth-[0-9t]+z` ⚠ unverified/,
     );
     expect(summary).toMatch(
       /### Approaches that did not work\n\n- Delete session rows: Cached refresh tokens stay valid `cp-/,

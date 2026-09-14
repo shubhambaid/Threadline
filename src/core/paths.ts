@@ -2,7 +2,7 @@ import { realpath } from "node:fs/promises";
 import path from "node:path";
 import picomatch from "picomatch";
 
-export const THREADLINE_DIR = ".threadline";
+export const ALETHIC_DIR = ".alethic";
 
 export type PathProblem =
   | "empty"

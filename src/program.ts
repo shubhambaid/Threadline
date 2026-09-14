@@ -12,9 +12,11 @@ import { doctorCommand } from "./commands/doctor.js";
 import { initCommand } from "./commands/init.js";
 import { knowledgeAddCommand, knowledgeUpdateCommand } from "./commands/knowledge.js";
 import { mcpCommand } from "./commands/mcp.js";
-import { receiptAddCommand } from "./commands/receipt.js";
+import { receiptAddCommand, receiptRunCommand } from "./commands/receipt.js";
 import { renderCommand } from "./commands/render.js";
 import { resumeCommand } from "./commands/resume.js";
+import { sessionNewCommand } from "./commands/session.js";
+import { showCommand } from "./commands/show.js";
 import { statusCommand } from "./commands/status.js";
 import {
   taskClaimCommand,
@@ -27,7 +29,7 @@ import { verifyCommand } from "./commands/verify.js";
 import { UsageError } from "./core/errors.js";
 import { GitError } from "./git/git.js";
 
-const AGENT_HELP = "agent writing the record (default: $THREADLINE_AGENT)";
+const AGENT_HELP = "agent writing the record (default: $ALETHIC_AGENT)";
 const JSON_HELP = "print a machine-readable result";
 const FINGERPRINT_HELP = "override limits.max_fingerprints_per_record for this record";
 
@@ -53,16 +55,16 @@ function withEvidenceOptions(command: Command): Command {
 }
 
 /**
- * Runs the Threadline CLI and resolves to its exit code:
+ * Runs the Aletheic CLI and resolves to its exit code:
  * 0 success, 1 validation errors, 2 usage or environment problems.
  */
 export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   let exitCode = 0;
   const program = new CommanderProgram()
-    .name("threadline")
-    .description("Shared memory for coding agents, anchored to Git.")
+    .name("alethic")
+    .description("Verifiable context for coding agents.")
     .version(pkg.version, "-v, --version")
-    .option("-C, --cwd <dir>", "run as if Threadline was started in <dir>")
+    .option("-C, --cwd <dir>", "run as if Aletheic was started in <dir>")
     .exitOverride()
     .configureOutput({
       writeOut: (text) => io.stdout(text),
@@ -76,7 +78,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
 
   program
     .command("init")
-    .description("Create .threadline/ in the current Git repository")
+    .description("Create .alethic/ in the current Git repository")
     .option("--name <name>", "project name (default: the repository directory name)")
     .action(async (options, command: Command) => {
       exitCode = await initCommand(ioFor(command), options);
@@ -97,6 +99,18 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     .option("--json", "print machine-readable status")
     .action(async (options, command: Command) => {
       exitCode = await statusCommand(ioFor(command), options);
+    });
+
+  program
+    .command("session")
+    .description("Identify agent sessions")
+    .command("new")
+    .description(
+      "Print a fresh id for ALETHIC_SESSION: export ALETHIC_SESSION=$(alethic session new)",
+    )
+    .option("--agent <name>", "prefix the id with this agent name (default: $ALETHIC_AGENT)")
+    .action(async (options, command: Command) => {
+      exitCode = await sessionNewCommand(ioFor(command), options);
     });
 
   const task = program.command("task").description("Start, claim, update, and close tasks");
@@ -161,12 +175,16 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       decision
         .command("add")
         .description("Record what was chosen, why, and what was rejected")
-        .requiredOption(
+        .option(
           "--topic <key>",
-          "dotted key for what is decided, e.g. auth.session-invalidation",
+          "dotted key for what is decided, e.g. auth.session-invalidation (required)",
         )
-        .requiredOption("--chosen <text>", "what was chosen")
-        .requiredOption("--rationale <text>", "why it was chosen")
+        .option("--chosen <text>", "what was chosen (required)")
+        .option("--rationale <text>", "why it was chosen (required)")
+        .option(
+          "--from-file <path>",
+          "read fields from a YAML or JSON file, or - for stdin; flags add to or override it",
+        )
         .option("--summary <text>", "one-line summary (default: the chosen option)")
         .option(
           "--alternative <option::reason>",
@@ -204,8 +222,15 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       knowledge
         .command("add")
         .description("Record an architectural or operational fact")
-        .requiredOption("--category <category>", "architecture, operations, convention, or gotcha")
-        .requiredOption("--body <text>", "the fact, with enough detail to act on")
+        .option(
+          "--category <category>",
+          "architecture, operations, convention, or gotcha (required)",
+        )
+        .option("--body <text>", "the fact, with enough detail to act on (required)")
+        .option(
+          "--from-file <path>",
+          "read fields from a YAML or JSON file, or - for stdin; flags add to or override it",
+        )
         .option("--summary <text>", "one-line summary (default: the body)")
         .option("--paths <globs...>", "repository paths or globs the fact is about")
         .option("--link <id>", "related record (repeatable)", collect, [])
@@ -233,7 +258,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   withWriteOptions(
     receipt
       .command("add")
-      .description("Record the result of a check that already ran (Threadline does not run it)")
+      .description("Record the result of a check that already ran (Aletheic does not run it)")
       .requiredOption("--command <command>", "the command that ran, e.g. 'pnpm test auth'")
       .requiredOption("--exit-code <n>", "its exit code")
       .option("--result <result>", "pass, fail, or error (default: from the exit code)")
@@ -248,6 +273,23 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       .option("--id <id>", "record id (default: derived from the command)"),
   ).action(async (options, command: Command) => {
     exitCode = await receiptAddCommand(ioFor(command), options);
+  });
+
+  withWriteOptions(
+    receipt
+      .command("run")
+      .description(
+        "Run a check and record what it did and the code it ran on (exit 1 if the check fails)",
+      )
+      .argument("<command...>", "the command and its arguments, after --")
+      .option("--summary <text>", "one-line summary")
+      .option(
+        "--paths <globs...>",
+        "only digest files matching these paths (default: the whole working tree)",
+      )
+      .option("--id <id>", "record id (default: derived from the command)"),
+  ).action(async (argv: string[], options, command: Command) => {
+    exitCode = await receiptRunCommand(ioFor(command), argv, options);
   });
 
   const checkpoint = program
@@ -272,7 +314,11 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       .option("--link <id>", "related record (repeatable)", collect, [])
       .option("--summary <text>", "one-line summary")
       .option("--human <name>", "a named human reviewed the checkpoint (human-confirmed)")
-      .option("--id <id>", "record id (default: derived from the task and time)"),
+      .option("--id <id>", "record id (default: derived from the task and time)")
+      .option(
+        "--from-file <path>",
+        "read fields from a YAML or JSON file, or - for stdin; flags add to or override it",
+      ),
   ).action(async (options, command: Command) => {
     exitCode = await checkpointCreateCommand(ioFor(command), options);
   });
@@ -310,6 +356,28 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       exitCode = await resumeCommand(ioFor(command), options);
     });
 
+  program
+    .command("show")
+    .description(
+      "Show one record with its derived freshness and trust, such as an item a briefing collapsed",
+    )
+    .argument("<id>", "record id")
+    .option("--json", JSON_HELP)
+    .action(async (id: string, options, command: Command) => {
+      exitCode = await showCommand(ioFor(command), id, options);
+    });
+
+  program
+    .command("dashboard")
+    .description("Serve a read-only local dashboard of sessions, records, handoffs, and health")
+    .option("--port <n>", "port to listen on (default: 4700; 0 picks a free port)")
+    .option("--host <address>", "loopback address: 127.0.0.1 (default), ::1, or localhost")
+    .option("--snapshot <file>", "write the dashboard's data as JSON (- for stdout) and exit")
+    .action(async (options, command: Command) => {
+      const { dashboardCommand } = await import("./commands/dashboard.js");
+      exitCode = await dashboardCommand(ioFor(command), options);
+    });
+
   withWriteOptions(
     program
       .command("verify")
@@ -332,7 +400,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       "apply safe fixes: pause tasks with expired leases, retire superseded decisions",
     )
     .option("--strict", "treat missing evidence commits as errors")
-    .option("--agent <name>", "agent applying --fix (default: $THREADLINE_AGENT)")
+    .option("--agent <name>", "agent applying --fix (default: $ALETHIC_AGENT)")
     .option("--json", "print a machine-readable report")
     .action(async (options, command: Command) => {
       exitCode = await doctorCommand(ioFor(command), options);
@@ -352,7 +420,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
 
   program
     .command("mcp")
-    .description("Serve Threadline tools and resources over MCP (stdio)")
+    .description("Serve Aletheic tools and resources over MCP (stdio)")
     .action(async (_options, command: Command) => {
       // Claude Code tells project servers where the project is; an explicit -C still wins.
       const { cwd } = command.optsWithGlobals<{ cwd?: string }>();
@@ -373,7 +441,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
       return 2;
     }
     io.stderr(`error: unexpected failure: ${(error as Error).message}\n`);
-    if (io.env.THREADLINE_DEBUG) io.stderr(`${(error as Error).stack}\n`);
+    if (io.env.ALETHIC_DEBUG) io.stderr(`${(error as Error).stack}\n`);
     return 2;
   }
 }

@@ -7,7 +7,7 @@ import pkg from "../../package.json" with { type: "json" };
 import { type Io, requireInitialized } from "../commands/context.js";
 import { UsageError } from "../core/errors.js";
 import { asObject, asString, isPlainObject } from "../core/json.js";
-import { loadRecordIndex } from "../core/records.js";
+import { assessLedger } from "../validate/assess.js";
 import { TOOLS, type ToolSpec } from "./tools.js";
 
 /** Protocol revisions this server speaks; the newest is offered when a client asks for another. */
@@ -35,10 +35,10 @@ class RpcError extends Error {
 }
 
 const INSTRUCTIONS =
-  "Threadline is shared task memory stored in .threadline/ and committed with the code. Call `resume` before non-trivial work. After running a check, call `receipt_record`. Call `checkpoint_create` before stopping or handing off. Never store transcripts, secrets, or customer data.";
+  "Aletheic is shared task memory stored in .alethic/ and committed with the code. Call `resume` before non-trivial work. After running a check, call `receipt_record`. Call `checkpoint_create` before stopping or handing off. Never store transcripts, secrets, or customer data.";
 
 const OPEN_TASK = new Set(["active", "paused", "blocked", "proposed"]);
-const RECORD_URI = /^threadline:\/\/records\/([a-z0-9][a-z0-9-]*)$/;
+const RECORD_URI = /^alethic:\/\/records\/([a-z0-9][a-z0-9-]*)$/;
 
 interface Captured {
   code: number;
@@ -87,7 +87,7 @@ export function createMcpHandler(options: {
 
     let scratch: string | undefined;
     const scratchDir = async () => {
-      scratch ??= await mkdtemp(path.join(os.tmpdir(), "threadline-mcp-"));
+      scratch ??= await mkdtemp(path.join(os.tmpdir(), "alethic-mcp-"));
       return scratch;
     };
     try {
@@ -96,7 +96,7 @@ export function createMcpHandler(options: {
       const ok = (tool.spec.okCodes ?? [0]).includes(out.code);
       if (!ok) {
         const message = out.stderr.trim() || out.stdout.trim();
-        return toolResult(message || `threadline exited with code ${out.code}`, true);
+        return toolResult(message || `alethic exited with code ${out.code}`, true);
       }
       return toolResult(out.stdout, false, out.stderr.trim());
     } catch (error) {
@@ -110,21 +110,21 @@ export function createMcpHandler(options: {
   async function listResources(): Promise<unknown> {
     const resources: unknown[] = [
       {
-        uri: "threadline://status",
+        uri: "alethic://status",
         name: "status",
-        title: "Threadline status",
+        title: "Aletheic status",
         description: "Git state, active tasks, latest checkpoints, and validation summary.",
         mimeType: "application/json",
       },
     ];
     try {
-      const index = await loadRecordIndex(await requireInitialized(io));
+      const { index } = await assessLedger(await requireInitialized(io));
       const open = [...index.values()]
         .filter((record) => record.kind === "task" && OPEN_TASK.has(String(record.data.status)))
         .sort((a, b) => String(a.data.id).localeCompare(String(b.data.id)));
       for (const record of open) {
         resources.push({
-          uri: `threadline://records/${String(record.data.id)}`,
+          uri: `alethic://records/${String(record.data.id)}`,
           name: String(record.data.id),
           title: asString(record.data.summary),
           mimeType: "application/yaml",
@@ -138,7 +138,7 @@ export function createMcpHandler(options: {
 
   async function readResource(params: Record<string, unknown>): Promise<unknown> {
     const uri = asString(params.uri) ?? "";
-    if (uri === "threadline://status") {
+    if (uri === "alethic://status") {
       const out = await capture(["status", "--json"]);
       if (out.code !== 0) throw new RpcError(-32603, out.stderr.trim() || "status failed");
       return { contents: [{ uri, mimeType: "application/json", text: out.stdout }] };
@@ -147,7 +147,9 @@ export function createMcpHandler(options: {
     if (id) {
       let record: { text: string } | undefined;
       try {
-        record = (await loadRecordIndex(await requireInitialized(io))).get(id);
+        // Only records that pass the shared assessment are served, so a hand-edited record with
+        // a secret or a forged trust label is never emitted.
+        record = (await assessLedger(await requireInitialized(io))).index.get(id);
       } catch (error) {
         if (error instanceof UsageError) throw new RpcError(-32603, error.message);
         throw error;
@@ -169,7 +171,7 @@ export function createMcpHandler(options: {
           tools: { listChanged: false },
           resources: { subscribe: false, listChanged: false },
         },
-        serverInfo: { name: "threadline", title: "Threadline", version: pkg.version },
+        serverInfo: { name: "alethic", title: "Aletheic", version: pkg.version },
         instructions: INSTRUCTIONS,
       };
     },
@@ -188,9 +190,9 @@ export function createMcpHandler(options: {
     "resources/templates/list": async () => ({
       resourceTemplates: [
         {
-          uriTemplate: "threadline://records/{id}",
+          uriTemplate: "alethic://records/{id}",
           name: "record",
-          title: "Threadline record",
+          title: "Aletheic record",
           description: "Any task, decision, knowledge, checkpoint, or receipt record by id.",
           mimeType: "application/yaml",
         },
@@ -223,7 +225,7 @@ export function createMcpHandler(options: {
         const data = error.data === undefined ? {} : { data: error.data };
         return { jsonrpc: "2.0", id, error: { code: error.code, message: error.message, ...data } };
       }
-      if (io.env.THREADLINE_DEBUG) io.stderr(`${(error as Error).stack}\n`);
+      if (io.env.ALETHIC_DEBUG) io.stderr(`${(error as Error).stack}\n`);
       return {
         jsonrpc: "2.0",
         id,

@@ -12,7 +12,7 @@ import {
   shortHead,
 } from "../helpers/workspace.js";
 
-const DECISION_FILE = ".threadline/decisions/dec-auth-session-invalidation.yaml";
+const DECISION_FILE = ".alethic/decisions/dec-auth-session-invalidation.yaml";
 
 function decisionArgs(extra: string[] = []): string[] {
   return [
@@ -28,7 +28,7 @@ function decisionArgs(extra: string[] = []): string[] {
   ];
 }
 
-describe("threadline decision", () => {
+describe("alethic decision", () => {
   it("records alternatives, evidence, and an anchor", async () => {
     const repo = await initializedRepo();
     const short = (repo.commits[0] ?? "").slice(0, 7);
@@ -107,7 +107,7 @@ describe("threadline decision", () => {
     expect(dangling.code).toBe(2);
     expect(dangling.stderr).toContain("--link kn-missing does not exist");
 
-    expect(readdirSync(path.join(repo.root, ".threadline/decisions"))).toEqual([".gitkeep"]);
+    expect(readdirSync(path.join(repo.root, ".alethic/decisions"))).toEqual([".gitkeep"]);
   });
 
   it("marks decisions superseded", async () => {
@@ -126,7 +126,7 @@ describe("threadline decision", () => {
   });
 });
 
-describe("threadline knowledge", () => {
+describe("alethic knowledge", () => {
   it("adds and deprecates facts", async () => {
     const repo = await initializedRepo();
     expectOk(
@@ -146,7 +146,7 @@ describe("threadline knowledge", () => {
         as(repo, "codex"),
       ),
     );
-    const file = ".threadline/knowledge/kn-refresh-tokens-are-cached.yaml";
+    const file = ".alethic/knowledge/kn-refresh-tokens-are-cached.yaml";
     expect(readRecord(repo, file)).toMatchObject({
       status: "active",
       category: "gotcha",
@@ -171,11 +171,11 @@ describe("threadline knowledge", () => {
   });
 });
 
-describe("threadline receipt", () => {
+describe("alethic receipt", () => {
   it("records a failing check with redacted, truncated output", async () => {
     const repo = await initializedRepo();
     const token = `sk-${"ant-"}api03-${"b".repeat(30)}`;
-    const log = path.join(mkdtempSync(path.join(tmpdir(), "threadline-log-")), "auth.log");
+    const log = path.join(mkdtempSync(path.join(tmpdir(), "alethic-log-")), "auth.log");
     writeFileSync(
       log,
       `${"noise line\n".repeat(1000)}FAIL session.test.ts\nANTHROPIC_API_KEY=${token}\nTests: 1 failed\n`,
@@ -197,11 +197,8 @@ describe("threadline receipt", () => {
         as(repo, "codex"),
       ),
     );
-    expect(result.stdout).toContain("(fail, agent-reported)");
-    const receipt = readRecord(
-      repo,
-      ".threadline/receipts/rcpt-pnpm-test-auth-20260913t210000z.yaml",
-    );
+    expect(result.stdout).toContain("(fail, agent-reported, reported)");
+    const receipt = readRecord(repo, ".alethic/receipts/rcpt-pnpm-test-auth-20260913t210000z.yaml");
     expect(receipt).toMatchObject({
       status: "recorded",
       confidence: "agent-reported",
@@ -236,7 +233,7 @@ describe("threadline receipt", () => {
       }),
     );
     expect(
-      readRecord(repo, ".threadline/receipts/rcpt-pnpm-test-20260913t210000z.yaml"),
+      readRecord(repo, ".alethic/receipts/rcpt-pnpm-test-20260913t210000z.yaml"),
     ).toMatchObject({
       result: "pass",
       confidence: "ci-reported",
@@ -252,7 +249,7 @@ describe("threadline receipt", () => {
       }),
     );
     expect(
-      readRecord(repo, ".threadline/receipts/rcpt-pnpm-test-20260913t210500z.yaml"),
+      readRecord(repo, ".alethic/receipts/rcpt-pnpm-test-20260913t210500z.yaml"),
     ).toMatchObject({
       confidence: "agent-reported",
       git: { dirty: true },
@@ -269,7 +266,7 @@ describe("threadline receipt", () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("exit_code must be 0");
     expect(
-      existsSync(path.join(repo.root, ".threadline/receipts/rcpt-pnpm-test-20260913t210000z.yaml")),
+      existsSync(path.join(repo.root, ".alethic/receipts/rcpt-pnpm-test-20260913t210000z.yaml")),
     ).toBe(false);
   });
 });

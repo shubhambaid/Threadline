@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:manifest",
-  "title": "Threadline manifest (.threadline/manifest.yaml)",
+  "$id": "urn:alethic:v1:manifest",
+  "title": "Aletheic manifest (.alethic/manifest.yaml)",
   "type": "object",
   "required": ["format_version", "project"],
   "properties": {
@@ -34,7 +34,7 @@
         "forbidden_globs": {
           "description": "Paths that records must never cite or fingerprint.",
           "type": "array",
-          "items": { "$ref": "urn:threadline:v1:common#/$defs/repoPath" }
+          "items": { "$ref": "urn:alethic:v1:common#/$defs/repoPath" }
         }
       },
       "additionalProperties": false
@@ -42,7 +42,11 @@
     "staleness": {
       "type": "object",
       "properties": {
-        "changed_lines_threshold": { "type": "integer", "minimum": 0 }
+        "changed_lines_threshold": {
+          "description": "Changes to direct evidence of at most this many lines are labeled small, larger ones large. The label orders review; any change to direct evidence needs re-verification.",
+          "type": "integer",
+          "minimum": 0
+        }
       },
       "additionalProperties": false
     },
@@ -50,7 +54,12 @@
       "type": "object",
       "properties": {
         "max_glob_matches": { "type": "integer", "minimum": 1 },
-        "max_fingerprints_per_record": { "type": "integer", "minimum": 0 }
+        "max_fingerprints_per_record": { "type": "integer", "minimum": 0 },
+        "max_receipt_files": {
+          "description": "Most files `alethic receipt run` digests before and after a command. Beyond it, coverage is recorded as partial.",
+          "type": "integer",
+          "minimum": 1
+        }
       },
       "additionalProperties": false
     },

@@ -1,15 +1,15 @@
 {
-  "name": "@threadline/cli",
+  "name": "alethic",
   "version": "0.0.0",
-  "description": "Shared memory for coding agents, anchored to Git.",
+  "description": "Verifiable context for coding agents.",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/shubhambaid/Threadline.git"
+    "url": "git+ssh://git@github.com/shubhambaid/Aletheic.git"
   },
   "bin": {
-    "threadline": "dist/cli.js"
+    "alethic": "dist/cli.js"
   },
   "files": [
     "dist",

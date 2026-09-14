@@ -26,7 +26,7 @@ export interface FixtureRepo {
 
 /** A fresh repository on `main` with local identity and no hooks or signing. */
 export async function createRepo(): Promise<FixtureRepo> {
-  const root = mkdtempSync(path.join(tmpdir(), "threadline-repo-"));
+  const root = mkdtempSync(path.join(tmpdir(), "alethic-repo-"));
   const repo: FixtureRepo = {
     root,
     commits: [],
@@ -50,8 +50,8 @@ export async function createRepo(): Promise<FixtureRepo> {
   };
   await repo.run(["init", "--quiet", "--initial-branch=main"]);
   for (const [key, value] of [
-    ["user.name", "Threadline Tests"],
-    ["user.email", "tests@threadline.invalid"],
+    ["user.name", "Aletheic Tests"],
+    ["user.email", "tests@alethic.invalid"],
     ["commit.gpgsign", "false"],
     ["tag.gpgsign", "false"],
     ["core.hooksPath", ".git/no-hooks"],
@@ -65,7 +65,7 @@ export async function createRepo(): Promise<FixtureRepo> {
  * Builds a repository from test/fixtures/<name>/:
  * - `commits/<n>/` trees are applied and committed in numeric order. A `.delete` file lists
  *   paths to remove in that step.
- * - `threadline/` is copied to `.threadline/`, with `{{commit:N}}`, `{{short:N}}`, and
+ * - `alethic/` is copied to `.alethic/`, with `{{commit:N}}`, `{{short:N}}`, and
  *   `{{blob:path}}` replaced by the full sha of commit N, its 7-char prefix, and the blob id
  *   of `path` at HEAD.
  */
@@ -102,10 +102,10 @@ export async function createFixtureRepo(
     await repo.commitAll(`fixture: commit ${step}`);
   }
 
-  const threadlineDir = path.join(dir, "threadline");
-  if (existsSync(threadlineDir)) {
-    await copyWithSubstitution(repo, threadlineDir, path.join(repo.root, ".threadline"));
-    if (options.commitRecords ?? true) await repo.commitAll("fixture: threadline records");
+  const alethicDir = path.join(dir, "alethic");
+  if (existsSync(alethicDir)) {
+    await copyWithSubstitution(repo, alethicDir, path.join(repo.root, ".alethic"));
+    if (options.commitRecords ?? true) await repo.commitAll("fixture: alethic records");
   }
   return repo;
 }

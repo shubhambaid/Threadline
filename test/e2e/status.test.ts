@@ -2,14 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createFixtureRepo } from "../helpers/fixture-repo.js";
 import { cli } from "../helpers/run-cli.js";
 
-describe("threadline status", () => {
+describe("alethic status", () => {
   it("summarizes Git state, active tasks, and validation", async () => {
     const repo = await createFixtureRepo("valid");
     const result = await cli(["status"], { cwd: repo.root });
     expect(result.code).toBe(0);
     const head = (repo.commits.at(-1) ?? "").slice(0, 7);
     for (const line of [
-      "Threadline status: fixture-valid",
+      "Aletheic status: fixture-valid",
       `  branch   main @ ${head} (clean)`,
       "  records  1 task, 1 decision, 1 knowledge, 1 checkpoint, 1 receipt",
       "  task-session-reset: Invalidate sessions after password reset.",

@@ -6,6 +6,7 @@ import { loadRecordIndex } from "../core/records.js";
 import { openWriteContext, saveRecord } from "../core/write.js";
 import {
   createOverlapCheck,
+  findCompetingClaims,
   findOrphanedCheckpoints,
   findOverlappingClaims,
   findUnretiredSupersessions,
@@ -24,12 +25,12 @@ export interface DoctorOptions {
 interface Diagnosis extends Finding {
   /** The first command in the hint, when there is one. */
   command?: string;
-  /** Whether `threadline doctor --fix` resolves it. */
+  /** Whether `alethic doctor --fix` resolves it. */
   fixable: boolean;
 }
 
 const FIXABLE = new Set(["expired-lease", "superseded-still-accepted"]);
-const COMMAND = /`((?:threadline|git) [^`]+)`/;
+const COMMAND = /`((?:alethic|git) [^`]+)`/;
 const FALLBACK_MANIFEST = resolveManifest({ project: { name: "unknown" } });
 
 function strings(value: unknown): string[] {
@@ -38,7 +39,8 @@ function strings(value: unknown): string[] {
 
 /**
  * Everything `validate` reports, plus coordination problems only worth raising on request:
- * overlapping claims, orphaned checkpoints, and superseded decisions still marked accepted.
+ * overlapping claims, competing claims, orphaned checkpoints, and superseded decisions still
+ * marked accepted.
  */
 export async function doctorCommand(io: Io, options: DoctorOptions): Promise<number> {
   const root = await requireInitialized(io);
@@ -50,6 +52,7 @@ export async function doctorCommand(io: Io, options: DoctorOptions): Promise<num
   const diagnoses: Diagnosis[] = sortFindings([
     ...report.findings,
     ...(await findOverlappingClaims(report.records, overlaps, at)),
+    ...findCompetingClaims(report.records),
     ...findOrphanedCheckpoints(report.records),
     ...findUnretiredSupersessions(report.records),
   ]).map((finding) => {
@@ -69,7 +72,7 @@ export async function doctorCommand(io: Io, options: DoctorOptions): Promise<num
   if (fixed.length > 0) lines.push("Fixed", ...fixed.map((message) => `  ${message}`), "");
   for (const diagnosis of diagnoses) {
     lines.push(formatFinding(diagnosis));
-    if (diagnosis.fixable) lines.push("        fixable: threadline doctor --fix");
+    if (diagnosis.fixable) lines.push("        fixable: alethic doctor --fix");
   }
   if (diagnoses.length > 0) lines.push("");
   const fixable = diagnoses.filter((d) => d.fixable).length;
@@ -85,7 +88,7 @@ export async function doctorCommand(io: Io, options: DoctorOptions): Promise<num
 /**
  * Safe, mechanical fixes only: pause active tasks whose lease expired (the owner stays on record)
  * and retire decisions that an accepted decision already supersedes. Anything that needs judgment
- * is left to the suggested command.
+ * is left to the suggested command. Each write is checked against the content it was based on.
  */
 async function applyFixes(
   io: Io,
@@ -95,8 +98,12 @@ async function applyFixes(
 ): Promise<string[]> {
   const index = await loadRecordIndex(root);
   const records = [...index.values()].sort((a, b) => a.file.localeCompare(b.file));
-  const updates: { kind: "task" | "decision"; data: Record<string, unknown>; message: string }[] =
-    [];
+  const updates: {
+    kind: "task" | "decision";
+    data: Record<string, unknown>;
+    expected: string;
+    message: string;
+  }[] = [];
 
   for (const record of records) {
     if (record.kind !== "task" || record.data.status !== "active") continue;
@@ -106,6 +113,7 @@ async function applyFixes(
     updates.push({
       kind: "task",
       data: { ...record.data, status: "paused" },
+      expected: record.text,
       message: `Paused ${String(record.data.id)}: the lease held by ${asString(owner?.agent) ?? "?"} expired at ${lease}.`,
     });
   }
@@ -126,6 +134,7 @@ async function applyFixes(
     updates.push({
       kind: "decision",
       data: { ...target.data, status: "superseded" },
+      expected: target.text,
       message: `Marked ${old} superseded: ${by} supersedes it.`,
     });
   }
@@ -137,7 +146,7 @@ async function applyFixes(
       ctx,
       update.kind,
       { ...update.data, updated_at: ctx.timestamp },
-      { overwrite: true },
+      { overwrite: true, expected: update.expected },
     );
   }
   return updates.map((update) => update.message);

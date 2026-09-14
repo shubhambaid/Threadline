@@ -1,4 +1,5 @@
 import type { Finding } from "../core/findings.js";
+import { describeWriter, distinctWriters, type Writer } from "../core/identity.js";
 import { asArray, asObject, asString } from "../core/json.js";
 import type { Manifest } from "../core/manifest.js";
 import { expandScope, isGlob, scopeMatcher } from "../core/paths.js";
@@ -59,6 +60,12 @@ export function createOverlapCheck(root: string, manifest: Manifest): Overlaps {
   };
 }
 
+export interface Contradiction {
+  topic: string;
+  older: LoadedRecord;
+  newer: LoadedRecord;
+}
+
 /**
  * Two accepted decisions on the same topic whose scopes overlap (or either has no scope), where
  * neither supersedes the other, directly or through a chain (docs/spec.md §11).
@@ -67,6 +74,24 @@ export async function findContradictions(
   records: readonly LoadedRecord[],
   overlaps: Overlaps,
 ): Promise<Finding[]> {
+  return (await findContradictionPairs(records, overlaps)).map(({ topic, older, newer }) => {
+    const [olderId, newerId] = [idOf(older), idOf(newer)];
+    return {
+      severity: "warning",
+      code: "contradiction",
+      file: newer.file,
+      path: "topic",
+      message: `Accepted decisions ${olderId} and ${newerId} both decide ${topic} for overlapping paths, and neither supersedes the other`,
+      hint: `Keep one: \`alethic decision update ${olderId} --status superseded\` (or the other way round), or record a new decision with --supersedes.`,
+    };
+  });
+}
+
+/** The pairs behind `findContradictions`, oldest pair first within each topic. */
+export async function findContradictionPairs(
+  records: readonly LoadedRecord[],
+  overlaps: Overlaps,
+): Promise<Contradiction[]> {
   const decisions = new Map(
     records.filter((r) => r.kind === "decision").map((record) => [idOf(record), record]),
   );
@@ -92,7 +117,7 @@ export async function findContradictions(
     byTopic.set(topic, [...(byTopic.get(topic) ?? []), record]);
   }
 
-  const findings: Finding[] = [];
+  const pairs: Contradiction[] = [];
   for (const [topic, group] of [...byTopic.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     group.sort(byCreation);
     for (let i = 0; i < group.length; i++) {
@@ -103,18 +128,11 @@ export async function findContradictions(
         if (supersedes(newerId, olderId) || supersedes(olderId, newerId)) continue;
         const [scopeA, scopeB] = [scopeOf(older), scopeOf(newer)];
         if (scopeA.length > 0 && scopeB.length > 0 && !(await overlaps(scopeA, scopeB))) continue;
-        findings.push({
-          severity: "warning",
-          code: "contradiction",
-          file: newer.file,
-          path: "topic",
-          message: `Accepted decisions ${olderId} and ${newerId} both decide ${topic} for overlapping paths, and neither supersedes the other`,
-          hint: `Keep one: \`threadline decision update ${olderId} --status superseded\` (or the other way round), or record a new decision with --supersedes.`,
-        });
+        pairs.push({ topic, older, newer });
       }
     }
   }
-  return findings;
+  return pairs;
 }
 
 /** Active tasks with unexpired leases, held by different agents, over overlapping paths. */
@@ -136,17 +154,17 @@ export async function findOverlappingClaims(
     for (let j = i + 1; j < claimed.length; j++) {
       const first = claimed[i] as LoadedRecord;
       const second = claimed[j] as LoadedRecord;
-      const ownerA = asString(asObject(first.data.owner)?.agent);
-      const ownerB = asString(asObject(second.data.owner)?.agent);
-      if (!ownerA || !ownerB || ownerA === ownerB) continue;
+      const ownerA = writerOf(first.data.owner);
+      const ownerB = writerOf(second.data.owner);
+      if (!ownerA.agent || !ownerB.agent || !distinctWriters(ownerA, ownerB)) continue;
       if (!(await overlaps(scopeOf(first), scopeOf(second)))) continue;
       findings.push({
         severity: "warning",
         code: "overlapping-claim",
         file: second.file,
         path: "scope.paths",
-        message: `${idOf(first)} (${ownerA}) and ${idOf(second)} (${ownerB}) are both active over overlapping paths`,
-        hint: `Coordinate before editing the same files: pause one with \`threadline task update ${idOf(second)} --status paused\`, or narrow its paths.`,
+        message: `${idOf(first)} (${describeWriter(ownerA)}) and ${idOf(second)} (${describeWriter(ownerB)}) are both active over overlapping paths`,
+        hint: `Coordinate before editing the same files: pause one with \`alethic task update ${idOf(second)} --status paused\`, or narrow its paths.`,
       });
     }
   }
@@ -172,9 +190,46 @@ export function findUnretiredSupersessions(records: readonly LoadedRecord[]): Fi
         file: target.file,
         path: "status",
         message: `${old} is superseded by ${idOf(record)} but is still ${String(target.data.status)}`,
-        hint: `Retire it: \`threadline decision update ${old} --status superseded\`.`,
+        hint: `Retire it: \`alethic decision update ${old} --status superseded\`.`,
       });
     }
+  }
+  return findings;
+}
+
+function writerOf(value: unknown): Writer {
+  const data = asObject(value);
+  return { agent: asString(data?.agent), session: asString(data?.session) };
+}
+
+/**
+ * Checkpoints written by a different writer (another agent, or another session of the same agent)
+ * than the task's current owner, while that owner's lease was in force: two sessions worked the
+ * same task, typically on branches that were merged since. Both attributions are kept.
+ */
+export function findCompetingClaims(records: readonly LoadedRecord[]): Finding[] {
+  const tasks = new Map(records.filter((r) => r.kind === "task").map((r) => [idOf(r), r]));
+  const findings: Finding[] = [];
+  for (const checkpoint of records.filter((r) => r.kind === "checkpoint").sort(byCreation)) {
+    const task = tasks.get(asString(checkpoint.data.task) ?? "");
+    const status = asString(task?.data.status);
+    if (!task || status === "done" || status === "abandoned") continue;
+    const owner = asObject(task.data.owner);
+    const claimedAt = asString(owner?.claimed_at);
+    const until = asString(owner?.lease_expires_at);
+    const createdAt = asString(checkpoint.data.created_at);
+    if (!claimedAt || !until || !createdAt || createdAt < claimedAt || createdAt >= until) continue;
+    const holder = writerOf(owner);
+    const author = writerOf(checkpoint.data.created_by);
+    if (!holder.agent || !author.agent || !distinctWriters(holder, author)) continue;
+    findings.push({
+      severity: "warning",
+      code: "competing-claim",
+      file: checkpoint.file,
+      path: "created_by",
+      message: `${idOf(checkpoint)} was written by ${describeWriter(author)} at ${createdAt}, while ${describeWriter(holder)} held ${idOf(task)} (claimed ${claimedAt}, lease until ${until})`,
+      hint: `Decide which session continues: review it with \`alethic checkpoint show ${idOf(checkpoint)}\`, then have that session run \`alethic task claim ${idOf(task)} --force\`.`,
+    });
   }
   return findings;
 }
@@ -196,7 +251,7 @@ export function findOrphanedCheckpoints(records: readonly LoadedRecord[]): Findi
       file: checkpoint.file,
       path: "task",
       message: `Written after ${idOf(task)} was closed (${status}); its next action may be unfinished work: ${truncate(next, 120)}`,
-      hint: `Review it with \`threadline checkpoint show ${idOf(checkpoint)}\`, and start a follow-up task if the work is still needed.`,
+      hint: `Review it with \`alethic checkpoint show ${idOf(checkpoint)}\`, and start a follow-up task if the work is still needed.`,
     });
   }
   return findings;

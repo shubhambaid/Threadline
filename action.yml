@@ -1,16 +1,16 @@
-# Validates .threadline/ records in CI. No model connection is needed.
+# Validates .alethic/ records in CI. No model connection is needed.
 #
 # Use a full clone (actions/checkout with fetch-depth: 0) so evidence commits can be checked.
 # In a shallow clone, missing commits are reported as warnings, or as errors with strict: "true".
-name: Threadline validate
-description: Validate Threadline shared-memory records (.threadline/) for schema, provenance, privacy, and lease problems.
+name: Aletheic validate
+description: Validate Aletheic shared-memory records (.alethic/) for schema, provenance, privacy, and lease problems.
 branding:
   icon: check-circle
   color: blue
 
 inputs:
   working-directory:
-    description: Directory of the repository that contains .threadline/
+    description: Directory of the repository that contains .alethic/
     required: false
     default: "."
   strict:
@@ -25,7 +25,7 @@ runs:
       with:
         node-version: 22
 
-    - name: Build Threadline
+    - name: Build Aletheic
       shell: bash
       working-directory: ${{ github.action_path }}
       run: npm ci --no-audit --no-fund && npm run build
@@ -34,9 +34,9 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
-        THREADLINE_CLI: ${{ github.action_path }}/dist/cli.js
-        THREADLINE_STRICT: ${{ inputs.strict }}
+        ALETHIC_CLI: ${{ github.action_path }}/dist/cli.js
+        ALETHIC_STRICT: ${{ inputs.strict }}
       run: |
         args=(validate)
-        if [ "$THREADLINE_STRICT" = "true" ]; then args+=(--strict); fi
-        node "$THREADLINE_CLI" "${args[@]}"
+        if [ "$ALETHIC_STRICT" = "true" ]; then args+=(--strict); fi
+        node "$ALETHIC_CLI" "${args[@]}"

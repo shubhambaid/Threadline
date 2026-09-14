@@ -9,7 +9,7 @@ export interface Io {
   env: NodeJS.ProcessEnv;
   stdout: (text: string) => void;
   stderr: (text: string) => void;
-  /** Input for `threadline mcp` (default: process.stdin). */
+  /** Input for `alethic mcp` (default: process.stdin). */
   stdin?: NodeJS.ReadableStream;
 }
 
@@ -25,7 +25,7 @@ export async function requireInitialized(io: Io): Promise<string> {
   const root = await resolveRepoRoot(io);
   if (!(await isInitialized(root))) {
     throw new UsageError(
-      "Threadline is not initialized in this repository. Run `threadline init` first.",
+      "Aletheic is not initialized in this repository. Run `alethic init` first.",
     );
   }
   return root;

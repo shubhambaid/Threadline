@@ -2,7 +2,7 @@ import { asArray, asObject, asString } from "../core/json.js";
 import type { Manifest } from "../core/manifest.js";
 import { expandScope, scopeMatcher } from "../core/paths.js";
 import type { LoadedRecord } from "../core/store.js";
-import { isAncestor, listTrackedFiles, resolveCommit } from "../git/git.js";
+import { createGitLookups, type GitLookups, listTrackedFiles } from "../git/git.js";
 import { collectPaths, collectReferences } from "../validate/references.js";
 
 export interface GitState {
@@ -44,12 +44,20 @@ export interface Candidate {
   reasons: Reason[];
 }
 
+/** A record that matched but was left out on purpose, and why. */
+export interface Skipped {
+  id: string;
+  reason: string;
+}
+
 export interface Collected {
   /** The task's checkpoints, newest first. */
   checkpoints: LoadedRecord[];
   decisions: Candidate[];
   knowledge: Candidate[];
   receipts: Candidate[];
+  /** Retired records that matched only by inference. */
+  skipped: Skipped[];
   scopePaths: string[];
   relevantFiles: string[];
 }
@@ -69,6 +77,7 @@ export async function collect(
   task: LoadedRecord,
   git: GitState,
   manifest: Manifest,
+  lookups: GitLookups = createGitLookups(root),
 ): Promise<Collected> {
   const taskId = idOf(task);
   const records = [...index.values()];
@@ -147,23 +156,29 @@ export async function collect(
       const createdAt = asString(record.data.created_at) ?? "";
       if (record.kind !== "receipt" || createdAt < since) continue;
       const head = asString(asObject(record.data.git)?.head);
-      const resolved = head ? await resolveCommit(root, head) : undefined;
+      const resolved = head ? await lookups.resolveCommit(head) : undefined;
       if (!resolved) continue;
       if (resolved === git.head) add(record, "at-head");
-      else if (createdAt >= pendingSince && (await isAncestor(root, resolved, git.head))) {
+      else if (createdAt >= pendingSince && (await lookups.isAncestor(resolved, git.head))) {
         add(record, "since-checkpoint");
       }
     }
   }
 
   // Superseded decisions and deprecated knowledge appear only when explicitly linked.
+  const skipped: Skipped[] = [];
   const kept = [...candidates.values()]
     .filter((candidate) => {
       const { kind, data } = candidate.record;
       const retired =
         (kind === "decision" && data.status === "superseded") ||
         (kind === "knowledge" && data.status === "deprecated");
-      return !retired || candidate.reasons.some((reason) => EXPLICIT.has(reason));
+      if (!retired || candidate.reasons.some((reason) => EXPLICIT.has(reason))) return true;
+      skipped.push({
+        id: candidate.id,
+        reason: `${String(data.status)} and not linked to the task (matched by ${candidate.reasons.join(", ")})`,
+      });
+      return false;
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
@@ -172,6 +187,7 @@ export async function collect(
     decisions: kept.filter((candidate) => candidate.record.kind === "decision"),
     knowledge: kept.filter((candidate) => candidate.record.kind === "knowledge"),
     receipts: kept.filter((candidate) => candidate.record.kind === "receipt"),
+    skipped: skipped.sort((a, b) => a.id.localeCompare(b.id)),
     scopePaths,
     relevantFiles,
   };

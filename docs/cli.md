@@ -1,35 +1,36 @@
-# Threadline CLI
+# Aletheic CLI
 
-The command is `threadline` (package `@threadline/cli`). Every command works without a model connection. The record format is defined in [spec.md](spec.md).
+The command is `alethic` (package `alethic`). Every command works without a model connection. The record format is defined in [spec.md](spec.md).
 
 ```console
-threadline init [--name <name>]
-threadline validate [--json] [--strict]
-threadline status [--json]
+alethic init [--name <name>]
+alethic validate [--json] [--strict]
+alethic status [--json]
 
-threadline task start "<intent>" [--paths <globs...>] [--next <text>] [--human <name>]
-threadline task claim <id> [--force]
-threadline task update <id> [--status proposed|paused|blocked] [--next <text>]
-threadline task close <id> [--status done|abandoned]
+alethic task start "<intent>" [--paths <globs...>] [--next <text>] [--human <name>]
+alethic task claim <id> [--force]
+alethic task update <id> [--status proposed|paused|blocked] [--next <text>]
+alethic task close <id> [--status done|abandoned]
 
-threadline decision add --topic <key> --chosen <text> --rationale <text> [--alternative "<option>::<reason>"]...
-threadline decision update <id> --status proposed|accepted|superseded
-threadline knowledge add --category <category> --body <text> [--summary <text>]
-threadline knowledge update <id> --status active|deprecated
-threadline receipt add --command "<cmd>" --exit-code <n> [--output-file <path>]
+alethic decision add --topic <key> --chosen <text> --rationale <text> [--alternative "<option>::<reason>"]...
+alethic decision update <id> --status proposed|accepted|superseded
+alethic knowledge add --category <category> --body <text> [--summary <text>]
+alethic knowledge update <id> --status active|deprecated
+alethic receipt run [--paths <globs...>] -- <command> [args...]
+alethic receipt add --command "<cmd>" --exit-code <n> [--output-file <path>]
 
-threadline checkpoint create [--task <id>] [--done <text>]... [--failed "<approach>::<why>"]... [--question <text>]... [--next <text>]
-threadline checkpoint list [--task <id>] [--json]
-threadline checkpoint show <id> [--json]
+alethic checkpoint create [--task <id>] [--done <text>]... [--failed "<approach>::<why>"]... [--question <text>]... [--next <text>]
+alethic checkpoint list [--task <id>] [--json]
+alethic checkpoint show <id> [--json]
 
-threadline resume [--task <id>] [--target codex|claude-code|gemini|generic] [--budget <tokens>] [--format md|json]
+alethic resume [--task <id>] [--target codex|claude-code|gemini|generic] [--budget <tokens>] [--format md|json]
 
-threadline verify <id> [--human <name> [--note <text>]] [--receipt <id>]...
-threadline doctor [--fix] [--strict] [--json]
+alethic verify <id> [--human <name> [--note <text>]] [--receipt <id>]...
+alethic doctor [--fix] [--strict] [--json]
 
-threadline render agents-md|claude-md|gemini-md [--write | --check]
-threadline render pr-summary [--task <id>]
-threadline mcp
+alethic render agents-md|claude-md|gemini-md [--write | --check]
+alethic render pr-summary [--task <id>]
+alethic mcp
 ```
 
 Global options:
@@ -38,7 +39,7 @@ Global options:
 |---|---|
 | `-C, --cwd <dir>` | Run as if started in `<dir>`, like `git -C`. |
 | `-v, --version` | Print the version. |
-| `-h, --help` | Show help for any command, e.g. `threadline checkpoint create --help`. |
+| `-h, --help` | Show help for any command, e.g. `alethic checkpoint create --help`. |
 
 ## Exit codes
 
@@ -46,28 +47,51 @@ Global options:
 |---|---|
 | 0 | Success. `validate` found no errors; warnings and info notes are allowed. |
 | 1 | `validate` found at least one error, or `task close` refused because the task's records are invalid. |
-| 2 | A usage or environment problem: unknown command, missing option, not a Git repository, Threadline not initialized, no agent identity, or a write refused because it would be invalid or leak a secret. |
+| 2 | A usage or environment problem: unknown command, missing option, not a Git repository, Aletheic not initialized, no agent identity, or a write refused because it would be invalid or leak a secret. |
 
 ## Writing records safely
 
 Every command that writes a record:
 
-- needs an agent identity from `--agent <name>` or `THREADLINE_AGENT`;
+- needs an agent identity from `--agent <name>` or `ALETHIC_AGENT`;
 - validates the record against its schema and scans every field for secrets **before** writing. If anything fails, nothing is written, and secret values are never echoed;
 - rejects unsafe paths (absolute, `..`, symlink escapes) and paths matching `privacy.forbidden_globs`;
 - checks that referenced records (`--link`, `--receipt`, `--supersedes`, `--task`) exist and are the right kind;
 - captures an `anchor`: Git blob ids of cited evidence files first, then files matched by `--paths`, up to `limits.max_fingerprints_per_record` (override with `--max-fingerprints <n>`);
-- sets `confidence: agent-reported`, or `human-confirmed` only when `--human <name>` names the person;
+- sets `confidence: agent-reported`, or `human-confirmed` only when `--human <name>` names the person. The confirmation records the name, the agent that recorded it (`recorded_by`), `authentication: none`, and a digest of the claim. The name is an attribution, not an authenticated identity (spec §8.1);
+- when an update changes the claim of a `human-confirmed` record (`--summary`), sets it back to `agent-reported` and warns;
 - accepts `--json` to print `{ id, file, warnings, ... }`.
 
 Repeatable options (`--done`, `--failed`, `--question`, `--alternative`, `--link`, `--receipt`, `--evidence-file`, `--commit`, `--check`, `--issue`, `--pr`, `--supersedes`) may be given more than once. `--paths` takes one or more values.
 
-## `threadline init`
+**Input from a file.** `checkpoint create`, `decision add`, and `knowledge add` accept `--from-file <path>`, or `--from-file -` for stdin, with the fields as YAML or JSON, so an agent can write a structured record without quoting many flags:
 
-Creates `.threadline/` in the current Git repository:
+```console
+$ alethic checkpoint create --from-file - <<'EOF'
+task: task-session-reset
+done: [Added token_version]
+failed_approaches:
+  - approach: Delete session rows
+    why_failed: The refresh cache still serves them
+open_questions: [Revoke API keys too?]
+next_safe_action: Compare token_version in refresh.ts
+EOF
+```
+
+| Command | Fields |
+|---|---|
+| `checkpoint create` | `task`, `summary`, `done`, `failed_approaches` (`approach`, `why_failed`), `open_questions`, `next_safe_action`, `receipts`, `links` |
+| `decision add` | `id`, `topic`, `chosen`, `rationale`, `summary`, `status`, `alternatives` (`option`, `rejected_because`), `paths`, `links`, `supersedes`, `evidence` (`files`, `commits`, `checks`, `receipts`, `issues`, `prs`) |
+| `knowledge add` | `id`, `category`, `body`, `summary`, `paths`, `links`, `evidence` |
+
+Flags given alongside the file override its single values and add to its lists. Unknown fields are refused, and so are fields that set trust or identity (`confidence`, `human`, `created_by`, `owner`, `anchor`, `valid_at`): those come only from flags and the environment. The record goes through the same validation and secret scan as flags.
+
+## `alethic init`
+
+Creates `.alethic/` in the current Git repository:
 
 ```text
-.threadline/
+.alethic/
   manifest.yaml
   .gitignore            # ignores local/
   tasks/ decisions/ knowledge/ checkpoints/ receipts/   (each with .gitkeep)
@@ -78,7 +102,7 @@ Creates `.threadline/` in the current Git repository:
 - `defaults.default_branch` is guessed from `origin/HEAD`, then a local `main` or `master`, then `init.defaultBranch`.
 - Safe to run again: existing files are never overwritten. The manifest is written last, so an interrupted run never leaves a repository that looks initialized but is incomplete.
 
-## `threadline task`
+## `alethic task`
 
 - **`start`** creates an `active` task owned by the current agent, with a lease of `defaults.lease_minutes`. The branch defaults to the current one.
 - **`claim`** takes ownership, or renews your own lease. It fails while another agent holds an unexpired lease on an active task; `--force` takes over and says whose lease it overrode. Paused, blocked, and proposed tasks can be claimed by anyone.
@@ -87,35 +111,55 @@ Creates `.threadline/` in the current Git repository:
 
 Closed tasks cannot be claimed, updated, or checkpointed.
 
-## `threadline decision` and `threadline knowledge`
+## `alethic decision` and `alethic knowledge`
 
 - **`decision add`** records `--topic`, `--chosen`, and `--rationale`, plus rejected alternatives as `"<option>::<reason>"`. The id defaults to `dec-<topic>`. Recording a second decision on the same topic needs `--id`, and `--supersedes <old-id>` when it replaces the old one.
 - **`knowledge add`** records a fact with `--category` (`architecture`, `operations`, `convention`, `gotcha`) and `--body`.
 - Both accept evidence: `--evidence-file`, `--commit` (a warning if not in the repository), `--check`, `--receipt`, `--issue`, `--pr`.
 - **`update`** changes `status` or `summary`.
 
-## `threadline receipt add`
+## `alethic receipt run`
 
-Records the result of a check that **already ran**. Threadline never runs commands.
+Runs one check and records what it did and the code it ran on. This is the only command that executes anything: it runs the command you name, in the foreground, and does not schedule, retry, or supervise work.
+
+```console
+$ alethic receipt run --paths "apps/api/auth/**" -- pnpm test auth
+…test output…
+Recorded .alethic/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, exit 1, observed; no files changed while it ran)
+```
+
+- Put the command after `--`. It runs without a shell, in the current directory, with the current environment. Environment variables are never recorded.
+- Output streams through as it arrives (to stderr with `--json`, so stdout stays JSON). The receipt keeps the last 4,000 characters, redacted before storage.
+- The receipt records the argv, working directory, start and end times, duration, exit code (or signal), and `provenance.capture: observed`.
+- Just before and just after the command, it digests the content of every tracked and untracked (not ignored) file outside `.alethic/` and forbidden paths, or only files matching `--paths`. If the digests (or HEAD) differ, the receipt says files changed while it ran. Beyond `limits.max_receipt_files` (default 20,000) files, coverage is recorded as partial, with a warning.
+- A command that cannot start is recorded as `error` with exit code 127.
+- Exit code: 0 when the check passed and was recorded, 1 when it failed or errored and was recorded, 2 when nothing was recorded (for example, a usage error, or a secret in the command line).
+- Confidence is `agent-reported`, or `ci-reported` in CI on a clean tree. Observing the run does not make it `ci-verified`.
+
+Later, `resume` compares the digest with the files as they are then, so an uncommitted edit after the check shows as "files have changed since it ran" even though HEAD did not move.
+
+## `alethic receipt add`
+
+Records the result of a check that **already ran**, as reported. Aletheic did not observe it, so the receipt is marked `provenance.capture: imported`, and briefings say "reported to Aletheic, not observed". Prefer `receipt run` when you can run the check through Aletheic.
 
 ```console
 $ pnpm test auth > /tmp/auth.log; echo $?
 1
-$ threadline receipt add --command "pnpm test auth" --exit-code 1 --output-file /tmp/auth.log
-Created .threadline/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, agent-reported)
+$ alethic receipt add --command "pnpm test auth" --exit-code 1 --output-file /tmp/auth.log
+Created .alethic/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, agent-reported)
 ```
 
 - `--result` defaults to `pass` for exit code 0, otherwise `fail`. Use `error` when the check could not run properly.
 - `--output-file` keeps the last 4,000 characters, starting at a line boundary, after redacting secrets.
-- The receipt records the branch, HEAD, and whether the tree was dirty (uncommitted changes outside `.threadline/`).
+- The receipt records the branch, HEAD, and whether the tree was dirty (uncommitted changes outside `.alethic/`).
 - With `CI=true` and a clean tree, confidence is `ci-reported` and `provenance.source` is `ci-env`, with the GitHub Actions run URL when available. That is still a self-report (spec §8). No command can produce `ci-verified`.
 
-## `threadline checkpoint`
+## `alethic checkpoint`
 
 **`create`** writes an append-only snapshot for the next agent:
 
 - **Task:** `--task`, or your single active task, or the single active task on this branch.
-- **Git:** branch, HEAD, dirty, `base` (merge-base with `defaults.default_branch`), and `changed_paths` since base, including uncommitted and untracked files, excluding `.threadline/` and forbidden paths.
+- **Git:** branch, HEAD, dirty, `base` (merge-base with `defaults.default_branch`), and `changed_paths` since base, including uncommitted and untracked files, excluding `.alethic/` and forbidden paths.
 - **Receipts:** those named with `--receipt`, plus receipts any agent recorded since the task's last checkpoint (or since the task started) whose `git.head` is on the current line of history. Evidence recorded before a handoff carries over; receipts from unrelated branches do not.
 - **`next_safe_action`:** `--next`, else the task's `next_action`, else `Not determined: review open_questions and failed_approaches before acting.` A checkpoint is never refused for lack of a next step, since stopping without one is worse.
 
@@ -124,24 +168,25 @@ Created .threadline/receipts/rcpt-pnpm-test-auth-20260913t200200z.yaml (fail, ag
 A typical handoff:
 
 ```console
-$ threadline checkpoint create --done "Added token_version" \
+$ alethic checkpoint create --done "Added token_version" \
     --failed "Delete session rows::Refresh tokens are cached" --next "Compare token_version in refresh.ts"
-$ threadline task update task-session-reset --status paused
+$ alethic task update task-session-reset --status paused
 $ git add -A && git commit -m "wip: checkpoint" && git push
 
 # The next agent, in a fresh session:
-$ threadline status
-$ threadline checkpoint show $(threadline checkpoint list --task task-session-reset --json | jq -r '.[0].id')
-$ threadline task claim task-session-reset
+$ alethic status
+$ alethic checkpoint show $(alethic checkpoint list --task task-session-reset --json | jq -r '.[0].id')
+$ alethic task claim task-session-reset
 ```
 
-## `threadline resume`
+## `alethic resume`
 
 Compiles a briefing for the next agent from records and the current Git state. Sections always appear in this order:
 
 1. **Goal**: the task's intent, status, and owner.
-2. **Current repository state**: branch, HEAD, dirty, changes since base, and how far HEAD has moved since the latest checkpoint, including whether any code outside `.threadline/` changed.
-3. **Relevant architecture and decisions**: decisions and knowledge.
+2. **Current repository state**: branch, HEAD, dirty, changes since base, and how far HEAD has moved since the latest checkpoint, including whether any code outside `.alethic/` changed.
+   - **Integrity warnings**, only when needed: records withheld because they failed validation (named by file and finding code only), files that could not be loaded, references that cannot be followed, and contradictory accepted decisions that touch the task. Always shown in full, at most five items of each kind.
+3. **Relevant architecture and decisions**: decisions and knowledge. Decisions in a contradiction are marked `⚠ disputed`.
 4. **Files changed or likely relevant**: task scope, changes on this branch, and paths changed at the latest checkpoint.
 5. **Verified behavior and checks run**: receipts, noting whether they ran on HEAD, on a commit with the same code, or on code that has changed since.
 6. **Failed approaches**: from every checkpoint for the task, newest first.
@@ -150,10 +195,12 @@ Compiles a briefing for the next agent from records and the current Git state. S
 
 Options:
 
-- `--task <id>`: defaults to the active task owned by `--agent` or `THREADLINE_AGENT`, else the single open task on the current branch, else the single open task.
-- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers. Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
+- `--task <id>`: defaults to the active task owned by `--agent` or `ALETHIC_AGENT`, else the single open task on the current branch, else the single open task.
+- `--budget <tokens>`: an **approximate** size, estimated as characters / 4 (default `defaults.budget`). Real tokenizer counts vary by model. Goal, repository state, and next safe action are always included in full. Other items shrink to one-line summaries, then to `N more: [ids]` pointers, which cite at most five records and count the rest. Every non-empty section keeps at least its top item before any section gets a second one, and a lower-ranked item is never shown while a higher-ranked item in the same section is hidden. When space is short, items are kept in this order: failed approaches, open questions, checks, decisions and knowledge, then files.
 - `--target`: `codex`, `claude-code`, `gemini`, or `generic`. Only the header and footer change; the content is identical for every target.
-- `--format json`: `{ task, target, budget, tokens, overBudget, sections[{ key, title, items[{ key, level, text }] }] }`.
+- `--format json`: `{ task, target, budget, tokens, overBudget, report, sections[{ key, title, items[{ key, level, text, record?, reasons?, score?, freshness?, applicability? }] }], skipped[{ id, reason }] }`. This is the compiler's inspectable result: every item is listed with the level it got (`full`, `short`, or `pointer` when it was collapsed into an "N more" line), and items from records say which record, how it was found (`reasons`), its score, and its derived freshness. `skipped` lists retired records that matched but were left out. `report` attributes the approximate tokens: `frame`, `required` (headings and sections that are never shortened), `optional`, and `pointers`, with the overflow `policy`.
+- Overflow: goal, repository state, integrity warnings, and next safe action are never shortened, even when they alone exceed the budget. The command still prints the briefing and warns on stderr, saying how much the mandatory content and the pointer lines take.
+- Every collapsed record can be read with `alethic show <id>`, and the briefing's footer says so.
 
 How records are chosen (deterministic, no embeddings):
 
@@ -164,11 +211,35 @@ How records are chosen (deterministic, no embeddings):
 
 They are ranked by how they were found (explicit links first), trust level (`ci-reported` counts the same as `agent-reported`), accepted status, whether their anchor is on this line of history, and, for receipts, whether the code is unchanged since they ran; then recency and id. Staleness never lowers a record's rank: a record that may be stale is shown with its warning rather than hidden. Within their section, records that may be stale are listed first, so their warnings survive small budgets.
 
-Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose anchored content changed materially are marked `⚠ may be stale: <reason>` (spec §9).
+Every bullet ends with its source: a record id like `[dec-auth-session-invalidation]`, `(receipt rcpt-…)`, or `(commit abc1234)`. Claims that are not `human-confirmed` or `ci-verified` are marked `⚠ unverified`. Records whose direct evidence changed by any amount are marked `⚠ may be stale: <reason>`, with `(small change)` when the change is within `staleness.changed_lines_threshold`. Records whose applicability cannot be established are marked `⚠ applicability unknown: <reason>`, and records whose cited files are unchanged while nearby files matched by a scope glob changed get `ℹ nearby files changed, cited files did not: <reason>` (spec §9).
 
-## `threadline render`
+## `alethic show`
 
-**Instruction files.** `render agents-md`, `render claude-md`, and `render gemini-md` maintain a short block between `<!-- threadline:begin -->` and `<!-- threadline:end -->` in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to start from `threadline resume`, record receipts and checkpoints, keep private content out of records, and validate before closing.
+Prints one record with what is derived about it. Use it to read an item a briefing collapsed into an "N more" line.
+
+```console
+$ alethic show dec-auth-session-store
+# dec-auth-session-store (decision)
+
+File:      .alethic/decisions/dec-auth-session-store.yaml
+Revision:  5b2f0c1e9d…
+Freshness: needs_reverification: apps/api/auth/session.ts changed 2 lines (+1/-1) since it was anchored
+Trust:     human-confirmed by Priya (attributed, recorded by codex; not authenticated)
+
+---
+id: dec-auth-session-store
+…
+```
+
+- `Revision` is the Git blob id of the record file.
+- `Freshness` is the derived status and its reasons (spec §9), `Trust` the confidence and, for human confirmations, whether the confirmation is bound to this text (§8.1). Receipts add `Applies`: whether the result applies to the current code, and whether it was observed or reported (§6.5).
+- Record-level findings, such as an outdated confirmation, are listed before the record.
+- `--json` prints `{ id, kind, file, revision, record, derived: { staleness, confirmation, receipt? }, findings }`.
+- Records that failed validation are refused (exit 2), so a secret in a hand-edited record is never printed.
+
+## `alethic render`
+
+**Instruction files.** `render agents-md`, `render claude-md`, and `render gemini-md` maintain a short block between `<!-- alethic:begin -->` and `<!-- alethic:end -->` in `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. The block tells the agent to start from `alethic resume`, record receipts and checkpoints, keep private content out of records, and validate before closing.
 
 - Without options, it prints the block and writes nothing.
 - `--write` creates the file, appends the block, or replaces the existing block. Text outside the markers is never changed, and CRLF line endings are kept. Running it again changes nothing.
@@ -181,10 +252,28 @@ Codex reads `AGENTS.md`, Claude Code reads `CLAUDE.md`, and Gemini CLI reads `GE
 **Pull request summary.** `render pr-summary` prints a Markdown description for a task (`--task`, or inferred as for `resume`). It includes the intent and status, decisions, the latest receipt for each command, failed approaches, open questions, and the next step, and each item cites its record. It reports recorded results and never re-runs them.
 
 ```console
-$ threadline render pr-summary | gh pr create --title "Invalidate sessions after password reset" --body-file -
+$ alethic render pr-summary | gh pr create --title "Invalidate sessions after password reset" --body-file -
 ```
 
-## `threadline mcp`
+## `alethic dashboard`
+
+Serves a read-only page on this machine that shows sessions, records, inferred handoffs, briefings, and health. See [dashboard.md](dashboard.md).
+
+```console
+$ alethic dashboard --port 0
+Aletheic dashboard: http://127.0.0.1:53211/
+Read-only, and reachable only from this machine. Press Ctrl+C to stop.
+```
+
+- `--port <n>`: default 4700; `0` picks a free port. `--host`: `127.0.0.1` (default), `::1`, or `localhost`; other addresses are refused.
+- `--snapshot <file>`: write the page's data as JSON (`-` for stdout) and exit. Records that fail validation are withheld from it, as from the page.
+- The server answers only `GET` and `HEAD`, rejects requests addressed to other host names, sends a strict Content-Security-Policy, and never writes records or runs commands.
+
+## `alethic session new`
+
+Prints a fresh session id, prefixed with `--agent` or `ALETHIC_AGENT`: `export ALETHIC_SESSION=$(alethic session new)`. Records and task owners then carry the session, so two runs of the same agent are different writers (spec §12).
+
+## `alethic mcp`
 
 Runs a Model Context Protocol server over stdio: newline-delimited JSON-RPC 2.0, protocol versions 2024-11-05 through 2025-11-25. Stdout carries only protocol messages, and diagnostics go to stderr. The server exits when the client closes stdin.
 
@@ -200,21 +289,21 @@ Runs a Model Context Protocol server over stdio: newline-delimited JSON-RPC 2.0,
 | `decision_add` | `decision add`, with `alternatives` as `{ option, rejected_because }` objects |
 | `knowledge_add` | `knowledge add` |
 
-Resources: `threadline://status` (JSON), and `threadline://records/{id}` for any record's YAML. Open tasks are listed.
+Resources: `alethic://status` (JSON), and `alethic://records/{id}` for any record's YAML. Open tasks are listed.
 
 - Every tool call runs the matching CLI command in-process, one call at a time. Schema validation, path safety, reference checks, and the secret scan are therefore the same as on the command line. A refused write comes back as a tool error (`isError: true`) with the CLI's message.
 - Arguments are checked against each tool's input schema first, and unknown properties are refused.
 - No tool takes a `human` argument, so nothing written over MCP can be `human-confirmed`.
-- Identity comes from `THREADLINE_AGENT` in the server's environment, or from an `agent` argument.
+- Identity comes from `ALETHIC_AGENT` in the server's environment, or from an `agent` argument.
 - The repository is `-C <dir>` if given, else `CLAUDE_PROJECT_DIR`, else the working directory.
 
-## `threadline validate`
+## `alethic validate`
 
 Checks every record against the rules in [spec.md §16](spec.md#16-validation-summary). Findings are printed as:
 
 ```text
-error   .threadline/tasks/task-abandoned.yaml:owner.lease_expires_at: Lease held by codex expired at 2026-09-13T20:00:00Z
-        hint: Renew with `threadline task claim task-abandoned`, or hand off: write a checkpoint and set status: paused.
+error   .alethic/tasks/task-abandoned.yaml:owner.lease_expires_at: Lease held by codex expired at 2026-09-13T20:00:00Z
+        hint: Renew with `alethic task claim task-abandoned`, or hand off: write a checkpoint and set status: paused.
 
 ✗ 1 error, 0 warnings in 2 records
 ```
@@ -226,7 +315,7 @@ Finding codes:
 
 | Code | Severity | Meaning |
 |---|---|---|
-| `manifest-missing` | error | `.threadline/manifest.yaml` does not exist. |
+| `manifest-missing` | error | `.alethic/manifest.yaml` does not exist. |
 | `manifest-pattern` | error | An entry in `privacy.extra_secret_patterns` is not a valid regular expression. |
 | `yaml` | error | Unparseable YAML, or anchors, aliases, custom tags, duplicate keys, or multiple documents. |
 | `wrong-extension` | error | A record file ends in `.yml` instead of `.yaml`. |
@@ -246,38 +335,42 @@ Finding codes:
 | `missing-commit` | warning (error with `--strict`) | An evidence commit, `git.head`, or `git.base` is not in the repository. |
 | `unavailable-commit` | info | `valid_at` or `anchor.commit` is not in the repository. Expected after squash merges; never a failure. |
 | `append-only` | error | A committed checkpoint or receipt was edited. |
-| `needs-reverification` | warning | An active decision's or knowledge record's direct files changed beyond `staleness.changed_lines_threshold`, or files were added to its scope (spec §9). |
+| `needs-reverification` | warning | An active decision's or knowledge record's direct files changed by any amount, or files were added to a scope with no direct files (spec §9). The message gives the size; `staleness.changed_lines_threshold` only labels it small or large. |
+| `uncertain-applicability` | warning | An anchored decision or knowledge record cites evidence that has no fingerprint, so changes to it cannot be detected. |
 | `diverged` | warning | The record was anchored on another line of history, and the content here differs. |
 | `contradiction` | warning | Two accepted decisions on the same topic have overlapping scopes, and neither supersedes the other (spec §11). |
+| `confirmation-outdated` | warning | A `human-confirmed` record's claim was edited after the latest confirmation, so it counts as `agent-reported` until someone confirms it again (spec §8.1). |
 
 A deleted evidence file is reported once, as `missing-evidence-file`, rather than also as stale.
 
-## `threadline verify`
+## `alethic verify`
 
 Re-anchors a decision, knowledge record, or task to HEAD after someone checked that it still holds. It rewrites `valid_at`, `anchor`, and `updated_at`, so the check appears as a diff (spec §8 rule 3, §9).
 
 ```console
-$ threadline verify dec-auth-refresh-cache --human "Priya" --note "Read refresh.ts after the rewrite"
-Updated .threadline/decisions/dec-auth-refresh-cache.yaml
+$ alethic verify dec-auth-refresh-cache --human "Priya" --note "Read refresh.ts after the rewrite"
+Updated .alethic/decisions/dec-auth-refresh-cache.yaml
 Verified dec-auth-refresh-cache at 4b1e9c2
   was: needs_reverification: apps/api/auth/refresh.ts changed 41 lines (+40/-1) since it was anchored
   confidence: human-confirmed (confirmed by Priya)
   anchor: 4 files fingerprinted
 ```
 
-- `--human <name>` sets `human-confirmed` and appends an `evidence.human` entry. `--note` records what the person checked.
+- `--human <name>` sets `human-confirmed` and appends an `evidence.human` entry with the name, `recorded_by` (the agent running the command), `authentication: none`, and a `claim_digest` of the current claim. `--note` records what the person checked. The name is not authenticated: anyone who can run the CLI can pass any name, and briefings say so (spec §8.1).
+- Without `--human`, a confirmation whose claim was edited after it was made is not kept, even if the code is unchanged.
 - Without `--human`, confidence becomes `agent-reported`, unless the anchored content is unchanged. In that case an existing `agent-reported`, `ci-reported`, or `human-confirmed` label is kept. A confirmation made against older code is never carried forward onto code that has changed. `inferred` becomes `agent-reported`.
 - No command can produce `ci-verified`.
 - `--receipt <id>` adds supporting receipts to `evidence.receipts`.
 - Refused: checkpoints and receipts (append-only), superseded or deprecated records, closed tasks, and records whose evidence files no longer exist.
 
-## `threadline doctor`
+## `alethic doctor`
 
 Runs everything `validate` checks, plus coordination checks that only `doctor` reports:
 
 | Code | Severity | Meaning |
 |---|---|---|
-| `overlapping-claim` | warning | Two active tasks with unexpired leases, held by different agents, over overlapping paths. |
+| `overlapping-claim` | warning | Two active tasks with unexpired leases, held by different writers (different agents, or two recorded sessions of one agent), over overlapping paths. |
+| `competing-claim` | warning | A checkpoint written by a different writer while the task's current owner held its lease, typically after merging branches that both worked the task. Names both writers and sessions. |
 | `orphaned-checkpoint` | warning | A checkpoint written after its task was closed, typically from merging branches. Its next action may be unfinished work. |
 | `superseded-still-accepted` | warning | A decision named in an accepted decision's `supersedes` that is still `accepted` or `proposed`. |
 
@@ -287,9 +380,9 @@ Scopes overlap when they share a pattern, when one names a path the other matche
 - `--fix` applies only mechanical fixes, then reports what remains. It pauses active tasks whose lease expired (the owner stays on record), and marks decisions `superseded` when an accepted decision already supersedes them. Anything that needs judgment, such as contradictions, stale claims, or overlapping claims, is left to the suggested command. `--fix` needs an agent identity.
 - Exit code 1 when errors remain, 0 otherwise. `--json` prints `{ ok, errors, warnings, fixed[], findings[] }`.
 
-## `threadline status`
+## `alethic status`
 
-Shows the branch, HEAD, and dirty state (changes under `.threadline/` don't count as dirty), record counts, active tasks with their owners, leases, next actions, and latest checkpoints, other open tasks, and a validation summary. It always exits 0 once Threadline is initialized; run `validate` for details.
+Shows the branch, HEAD, and dirty state (changes under `.alethic/` don't count as dirty), record counts, active tasks with their owners, leases, next actions, and latest checkpoints, other open tasks, and a validation summary. It always exits 0 once Aletheic is initialized; run `validate` for details.
 
 `--json` prints `{ project, git, counts, activeTasks[], openTasks[], validation }`.
 
@@ -297,11 +390,13 @@ Shows the branch, HEAD, and dirty state (changes under `.threadline/` don't coun
 
 | Variable | Meaning |
 |---|---|
-| `THREADLINE_AGENT` | Agent identity for commands that write records, such as `codex`, `claude-code`, or `gemini`. `--agent` takes precedence. |
-| `THREADLINE_NOW` | Fixed current time (for example `2026-09-13T21:00:00Z`), for reproducible tests and demos. |
-| `THREADLINE_DEBUG` | Print stack traces for unexpected failures. |
+| `ALETHIC_AGENT` | Agent identity for commands that write records, such as `codex`, `claude-code`, or `gemini`. `--agent` takes precedence. |
+| `ALETHIC_SESSION` | The session of that agent, recorded in `created_by.session` and `owner.session`, so two runs of the same tool are different writers. `alethic session new` prints a fresh id. `alethic mcp` generates one per connection when unset. |
+| `ALETHIC_MODEL` | The model behind the session, recorded in `created_by.model`. Only set it when you know it; nothing guesses it. |
+| `ALETHIC_NOW` | Fixed current time (for example `2026-09-13T21:00:00Z`), for reproducible tests and demos. |
+| `ALETHIC_DEBUG` | Print stack traces for unexpected failures. |
 | `CI` | When `true` (or `1`) and the tree is clean, receipts are labeled `ci-reported`. |
-| `CLAUDE_PROJECT_DIR` | Set by Claude Code for the MCP servers it starts. `threadline mcp` uses it as the repository when `-C` is not given. |
+| `CLAUDE_PROJECT_DIR` | Set by Claude Code for the MCP servers it starts. `alethic mcp` uses it as the repository when `-C` is not given. |
 
 ## CI
 
@@ -311,7 +406,7 @@ Validate records on every pull request with the bundled action:
 - uses: actions/checkout@v7
   with:
     fetch-depth: 0 # full history, so evidence commits can be checked
-- uses: shubhambaid/Threadline@main
+- uses: shubhambaid/Aletheic@main
   with:
     strict: "true"
 ```

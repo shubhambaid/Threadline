@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "urn:threadline:v1:knowledge",
-  "title": "Threadline knowledge",
+  "$id": "urn:alethic:v1:knowledge",
+  "title": "Aletheic knowledge",
   "type": "object",
-  "allOf": [{ "$ref": "urn:threadline:v1:common#/$defs/envelope" }],
+  "allOf": [{ "$ref": "urn:alethic:v1:common#/$defs/envelope" }],
   "required": ["body", "category"],
   "properties": {
     "id": { "type": "string", "pattern": "^kn-" },

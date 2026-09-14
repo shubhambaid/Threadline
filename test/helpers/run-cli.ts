@@ -9,7 +9,7 @@ export interface CliResult {
   stderr: string;
 }
 
-/** Runs the CLI in-process with a clean environment (no THREADLINE_AGENT from the host). */
+/** Runs the CLI in-process with a clean environment (no ALETHIC_AGENT from the host). */
 export async function cli(
   args: string[],
   options: { cwd: string; env?: Record<string, string | undefined> },
@@ -19,7 +19,7 @@ export async function cli(
   const env: NodeJS.ProcessEnv = {
     PATH: process.env.PATH,
     HOME: process.env.HOME,
-    THREADLINE_NOW: TEST_NOW,
+    ALETHIC_NOW: TEST_NOW,
     ...options.env,
   };
   const code = await runCli(args, {

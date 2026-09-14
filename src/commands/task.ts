@@ -1,14 +1,15 @@
 import { addMinutes, toTimestamp } from "../core/clock.js";
 import { UsageError } from "../core/errors.js";
+import { describeWriter } from "../core/identity.js";
 import { makeId } from "../core/ids.js";
 import { asObject, asString } from "../core/json.js";
 import { loadRecordIndex, requireRecord } from "../core/records.js";
 import { truncate } from "../core/text.js";
 import {
+  addHumanConfirmation,
   anchorFor,
   assertSafePaths,
   compact,
-  confidenceFor,
   createdBy,
   openWriteContext,
   saveRecord,
@@ -17,6 +18,7 @@ import {
   type WriteContext,
 } from "../core/write.js";
 import { currentBranch } from "../git/git.js";
+import { reconcileConfirmation } from "../trust/claims.js";
 import { validateRepository } from "../validate/index.js";
 import { collectReferences } from "../validate/references.js";
 import { type Io, requireInitialized } from "./context.js";
@@ -27,6 +29,7 @@ type Data = Record<string, unknown>;
 
 interface Lease {
   agent?: string;
+  session?: string;
   expiresAt?: string;
   /** The task is active and the lease has not expired. */
   held: boolean;
@@ -35,13 +38,25 @@ interface Lease {
 function leaseOf(data: Data, now: Date): Lease {
   const owner = asObject(data.owner);
   const agent = asString(owner?.agent);
+  const session = asString(owner?.session);
   const expiresAt = asString(owner?.lease_expires_at);
   const held =
     data.status === "active" &&
     agent !== undefined &&
     expiresAt !== undefined &&
     Date.parse(expiresAt) > now.getTime();
-  return { agent, expiresAt, held };
+  return { agent, session, expiresAt, held };
+}
+
+/**
+ * Whether someone other than this caller holds the lease: another agent, or another session of
+ * the same agent when the lease names a session. A lease without a session can be renewed by any
+ * session of its agent, because nothing recorded tells them apart (docs/spec.md §12).
+ */
+function heldByOther(ctx: WriteContext, lease: Lease): boolean {
+  if (!lease.held) return false;
+  if (lease.agent !== ctx.agent) return true;
+  return lease.session !== undefined && lease.session !== ctx.session;
 }
 
 function assertOpen(id: string, data: Data): void {
@@ -53,9 +68,10 @@ function assertOpen(id: string, data: Data): void {
 
 function assertNotHeldByOther(ctx: WriteContext, id: string, data: Data, force?: boolean): Lease {
   const lease = leaseOf(data, ctx.now);
-  if (lease.held && lease.agent !== ctx.agent && !force) {
+  if (heldByOther(ctx, lease) && !force) {
+    const sameTool = lease.agent === ctx.agent;
     throw new UsageError(
-      `${id} is held by ${lease.agent} until ${lease.expiresAt}. Wait for the lease to expire, or pass --force to take over.`,
+      `${id} is held by ${describeWriter(lease)} until ${lease.expiresAt}.${sameTool ? ` That is another session of ${ctx.agent}${ctx.session ? ` (this one is ${ctx.session})` : "; set ALETHIC_SESSION to that session to continue it"}.` : ""} Wait for the lease to expire, or pass --force to take over.`,
     );
   }
   return lease;
@@ -63,6 +79,15 @@ function assertNotHeldByOther(ctx: WriteContext, id: string, data: Data, force?:
 
 function leaseUntil(ctx: WriteContext): string {
   return toTimestamp(addMinutes(ctx.now, ctx.manifest.defaults.lease_minutes));
+}
+
+function ownerFor(ctx: WriteContext, claimedAt: string): Record<string, unknown> {
+  return compact({
+    agent: ctx.agent,
+    session: ctx.session,
+    claimed_at: claimedAt,
+    lease_expires_at: leaseUntil(ctx),
+  });
 }
 
 export interface TaskStartOptions extends CommonWriteOptions {
@@ -90,27 +115,30 @@ export async function taskStartCommand(
   if (index.has(id)) throw new UsageError(`${id} already exists. Pass --id to choose another id.`);
 
   const { anchor, warnings } = await anchorFor(ctx, { scopePaths: paths }, options.maxFingerprints);
-  const leaseExpiresAt = leaseUntil(ctx);
-  const record = compact({
+  const owner = ownerFor(ctx, ctx.timestamp);
+  const draft = compact({
     id,
     kind: "task",
     schema_version: 1,
     summary: truncate(options.summary ?? intent, 280),
     status: "active",
-    confidence: confidenceFor(options.human),
+    confidence: "agent-reported",
     intent: intent.trim(),
     branch: options.branch ?? (await currentBranch(root)),
-    owner: { agent: ctx.agent, claimed_at: ctx.timestamp, lease_expires_at: leaseExpiresAt },
+    owner,
     next_action: options.next,
     scope: { paths },
-    evidence: options.human
-      ? { human: [{ name: options.human, at: ctx.timestamp, note: "Confirmed the task intent." }] }
-      : undefined,
     created_by: createdBy(ctx, options.human),
     created_at: ctx.timestamp,
     valid_at: await validAt(root),
     anchor,
   });
+  const record = options.human
+    ? addHumanConfirmation(ctx, "task", draft, {
+        name: options.human,
+        note: "Confirmed the task intent.",
+      })
+    : draft;
 
   const file = await saveRecord(ctx, "task", record);
   reportWrite(
@@ -119,8 +147,12 @@ export async function taskStartCommand(
       id,
       file,
       warnings,
-      message: `Created ${file} (active, owned by ${ctx.agent} until ${leaseExpiresAt})`,
-      details: { owner: ctx.agent, leaseExpiresAt },
+      message: `Created ${file} (active, owned by ${describeWriter(ctx)} until ${String(owner.lease_expires_at)})`,
+      details: {
+        owner: ctx.agent,
+        session: ctx.session ?? null,
+        leaseExpiresAt: owner.lease_expires_at,
+      },
     },
     options.json,
   );
@@ -142,27 +174,38 @@ export async function taskClaimCommand(
   assertOpen(id, task.data);
   const lease = assertNotHeldByOther(ctx, id, task.data, options.force);
 
-  const renewing = lease.held && lease.agent === ctx.agent;
-  const leaseExpiresAt = leaseUntil(ctx);
+  const renewing = lease.held && !heldByOther(ctx, lease);
   const claimedAt = renewing
     ? (asString(asObject(task.data.owner)?.claimed_at) ?? ctx.timestamp)
     : ctx.timestamp;
+  const owner = ownerFor(ctx, claimedAt);
   const updated = {
     ...task.data,
     status: "active",
-    owner: { agent: ctx.agent, claimed_at: claimedAt, lease_expires_at: leaseExpiresAt },
+    owner,
     updated_at: ctx.timestamp,
   };
-  const file = await saveRecord(ctx, "task", updated, { overwrite: true });
+  const file = await saveRecord(ctx, "task", updated, { overwrite: true, expected: task.text });
 
+  const until = String(owner.lease_expires_at);
   const message = renewing
-    ? `Renewed ${id} for ${ctx.agent} until ${leaseExpiresAt}`
+    ? `Renewed ${id} for ${describeWriter(ctx)} until ${until}`
     : lease.held
-      ? `Took over ${id} from ${lease.agent} (lease was until ${lease.expiresAt}); owned by ${ctx.agent} until ${leaseExpiresAt}`
-      : `Claimed ${id} for ${ctx.agent} until ${leaseExpiresAt}`;
+      ? `Took over ${id} from ${describeWriter(lease)} (lease was until ${lease.expiresAt}); owned by ${describeWriter(ctx)} until ${until}`
+      : `Claimed ${id} for ${describeWriter(ctx)} until ${until}`;
   reportWrite(
     io,
-    { id, file, message, details: { owner: ctx.agent, leaseExpiresAt, renewed: renewing } },
+    {
+      id,
+      file,
+      message,
+      details: {
+        owner: ctx.agent,
+        session: ctx.session ?? null,
+        leaseExpiresAt: until,
+        renewed: renewing,
+      },
+    },
     options.json,
   );
   return 0;
@@ -187,10 +230,10 @@ export async function taskUpdateCommand(
     throw new UsageError("Nothing to update. Pass --status, --next, or --summary.");
   }
   if (status === "active") {
-    throw new UsageError(`Use \`threadline task claim ${id}\` to make a task active.`);
+    throw new UsageError(`Use \`alethic task claim ${id}\` to make a task active.`);
   }
   if (status === "done" || status === "abandoned") {
-    throw new UsageError(`Use \`threadline task close ${id} --status ${status}\` to close a task.`);
+    throw new UsageError(`Use \`alethic task close ${id} --status ${status}\` to close a task.`);
   }
   if (status && !UPDATABLE_STATUSES.includes(status)) {
     throw new UsageError(`--status must be one of: ${UPDATABLE_STATUSES.join(", ")}`);
@@ -202,17 +245,22 @@ export async function taskUpdateCommand(
   assertOpen(id, task.data);
   assertNotHeldByOther(ctx, id, task.data, options.force);
 
-  const updated = {
+  const { record: updated, warning } = reconcileConfirmation("task", id, task.data, {
     ...task.data,
     ...(status ? { status } : {}),
     ...(next ? { next_action: next } : {}),
     ...(summary ? { summary: truncate(summary, 280) } : {}),
     updated_at: ctx.timestamp,
-  };
-  const file = await saveRecord(ctx, "task", updated, { overwrite: true });
+  });
+  const file = await saveRecord(ctx, "task", updated, { overwrite: true, expected: task.text });
   reportWrite(
     io,
-    { id, file, message: `Updated ${file}${status ? ` (status: ${status})` : ""}` },
+    {
+      id,
+      file,
+      warnings: warning ? [warning] : [],
+      message: `Updated ${file}${status ? ` (status: ${status})` : ""}`,
+    },
     options.json,
   );
   return 0;
@@ -266,13 +314,17 @@ export async function taskCloseCommand(
     return 1;
   }
 
-  const updated = {
+  const { record: updated, warning } = reconcileConfirmation("task", id, task.data, {
     ...task.data,
     status,
     ...(options.summary ? { summary: truncate(options.summary, 280) } : {}),
     updated_at: ctx.timestamp,
-  };
-  const file = await saveRecord(ctx, "task", updated, { overwrite: true });
-  reportWrite(io, { id, file, message: `Closed ${id} (${status})` }, options.json);
+  });
+  const file = await saveRecord(ctx, "task", updated, { overwrite: true, expected: task.text });
+  reportWrite(
+    io,
+    { id, file, warnings: warning ? [warning] : [], message: `Closed ${id} (${status})` },
+    options.json,
+  );
   return 0;
 }

@@ -19,7 +19,7 @@ describe("checkpoint receipts across a handoff", () => {
         as(repo, "codex", "2026-09-13T21:05:00Z"),
       ),
     );
-    await repo.commitAll("threadline: task and receipt");
+    await repo.commitAll("alethic: task and receipt");
 
     // A receipt recorded on an unrelated branch must not be attached.
     await repo.run(["checkout", "-q", "-b", "experiment"]);
@@ -51,7 +51,7 @@ describe("checkpoint receipts across a handoff", () => {
     );
     expect(result.stdout).toContain("1 receipt attached");
     expect(
-      readRecord(repo, ".threadline/checkpoints/cp-invalidate-sessions-20260913t211500z.yaml")
+      readRecord(repo, ".alethic/checkpoints/cp-invalidate-sessions-20260913t211500z.yaml")
         .receipts,
     ).toEqual(["rcpt-pnpm-test-auth-20260913t210500z"]);
   });

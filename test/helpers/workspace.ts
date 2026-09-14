@@ -13,20 +13,20 @@ export const APP_FILES: Record<string, string> = {
   "README.md": "# workspace\n",
 };
 
-/** A repository with application files and a committed `threadline init`. */
+/** A repository with application files and a committed `alethic init`. */
 export async function initializedRepo(files = APP_FILES): Promise<FixtureRepo> {
   const repo = await createRepo();
   for (const [rel, content] of Object.entries(files)) repo.write(rel, content);
   await repo.commitAll("initial");
   const result = await cli(["init", "--name", "workspace"], { cwd: repo.root });
   if (result.code !== 0) throw new Error(`init failed: ${result.stderr}`);
-  await repo.commitAll("Initialize Threadline");
+  await repo.commitAll("Initialize Aletheic");
   return repo;
 }
 
 /** CLI options for acting as `agent` at time `at`. */
 export function as(repo: FixtureRepo, agent: string, at = TEST_NOW) {
-  return { cwd: repo.root, env: { THREADLINE_AGENT: agent, THREADLINE_NOW: at } };
+  return { cwd: repo.root, env: { ALETHIC_AGENT: agent, ALETHIC_NOW: at } };
 }
 
 export function expectOk(result: CliResult): CliResult {
@@ -41,7 +41,7 @@ export function readRecord(repo: FixtureRepo, file: string): Record<string, unkn
 }
 
 export async function expectValid(repo: FixtureRepo, at = TEST_NOW): Promise<void> {
-  const result = await cli(["validate", "--json"], { cwd: repo.root, env: { THREADLINE_NOW: at } });
+  const result = await cli(["validate", "--json"], { cwd: repo.root, env: { ALETHIC_NOW: at } });
   expect(JSON.parse(result.stdout).findings).toEqual([]);
   expect(result.code).toBe(0);
 }

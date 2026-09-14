@@ -78,7 +78,7 @@ export function isSchemaName(value: string): value is SchemaName {
 }
 
 export function validateAgainst(name: SchemaName, data: unknown): SchemaResult {
-  const validate = getAjv().getSchema(`urn:threadline:v1:${name}`);
+  const validate = getAjv().getSchema(`urn:alethic:v1:${name}`);
   if (!validate) throw new Error(`Schema not registered: ${name}`);
   const valid = validate(data) as boolean;
   return {

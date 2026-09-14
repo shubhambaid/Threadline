@@ -1,4 +1,5 @@
 import { now } from "../core/clock.js";
+import { describeWriter } from "../core/identity.js";
 import { RECORD_KINDS, type RecordKind } from "../core/ids.js";
 import { asObject, asString } from "../core/json.js";
 import type { LoadedRecord } from "../core/store.js";
@@ -16,6 +17,7 @@ export interface TaskSummary {
   status: string;
   summary: string;
   owner: string | null;
+  ownerSession: string | null;
   leaseExpiresAt: string | null;
   leaseExpired: boolean;
   nextAction: string | null;
@@ -59,7 +61,7 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
   }
 
   const lines = [
-    `Threadline status: ${status.project ?? "(manifest invalid)"}`,
+    `Aletheic status: ${status.project ?? "(manifest invalid)"}`,
     `  branch   ${branch ?? "(detached HEAD)"} @ ${head ? head.slice(0, 7) : "no commits"} (${dirty ? "dirty" : "clean"})`,
     `  records  ${[
       plural(counts.task, "task"),
@@ -75,8 +77,12 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
   for (const task of activeTasks) {
     lines.push(`  ${task.id}: ${task.summary}`);
     if (task.owner) {
+      const owner = describeWriter({
+        agent: task.owner,
+        ...(task.ownerSession ? { session: task.ownerSession } : {}),
+      });
       lines.push(
-        `    owner ${task.owner}, lease until ${task.leaseExpiresAt ?? "?"}${task.leaseExpired ? " (expired)" : ""}`,
+        `    owner ${owner}, lease until ${task.leaseExpiresAt ?? "?"}${task.leaseExpired ? " (expired)" : ""}`,
       );
     }
     if (task.nextAction) lines.push(`    next: ${task.nextAction}`);
@@ -92,7 +98,7 @@ export async function statusCommand(io: Io, options: StatusOptions): Promise<num
     "",
     report.errors === 0
       ? `Validation: ok (${plural(report.warnings, "warning")})`
-      : `Validation: ${plural(report.errors, "error")}, ${plural(report.warnings, "warning")}. Run \`threadline validate\` for details.`,
+      : `Validation: ${plural(report.errors, "error")}, ${plural(report.warnings, "warning")}. Run \`alethic validate\` for details.`,
   );
   io.stdout(`${lines.join("\n")}\n`);
   return 0;
@@ -119,6 +125,7 @@ function summarizeTask(
     status: asString(task.data.status) ?? "unknown",
     summary: asString(task.data.summary) ?? "",
     owner: asString(owner?.agent) ?? null,
+    ownerSession: asString(owner?.session) ?? null,
     leaseExpiresAt: lease,
     leaseExpired: lease !== null && Date.parse(lease) <= at.getTime(),
     nextAction: asString(task.data.next_action) ?? null,

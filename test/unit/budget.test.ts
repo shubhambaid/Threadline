@@ -86,10 +86,23 @@ describe("allocate", () => {
           item("b", 1, 0, "[cp-x]"),
           item("c", 1, 0, "[dec-y]"),
         ]),
-        pointerNoun: "files",
+        pointerNoun: { one: "file", other: "files" },
       },
     ];
     expect(allocate(sections, 0).content).toBe("## Files\n- 3 more files: [cp-x], [dec-y]");
+
+    const single: BriefingSection[] = [
+      { ...section("Files", false, [item("a", 1)]), pointerNoun: { one: "file", other: "files" } },
+    ];
+    expect(allocate(single, 0).content).toBe("## Files\n- 1 more file: [a]");
+  });
+
+  it("bounds the citations in a collapsed line, however many records are hidden", () => {
+    const many = Array.from({ length: 400 }, (_, i) => item(`i${i}`, 1));
+    const content = allocate([section("Decisions", false, many)], 0).content;
+    expect(content).toBe("## Decisions\n- 400 more: [i0], [i1], [i2], [i3], [i4], and 395 others");
+    const few = allocate([section("Decisions", false, many.slice(0, 7))], 0).content;
+    expect(few).toBe("## Decisions\n- 7 more: [i0], [i1], [i2], [i3], [i4], and 2 others");
   });
 
   it("renders empty sections without bullets", () => {

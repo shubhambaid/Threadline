@@ -42,14 +42,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Create a sample repository with Threadline state
+      - name: Create a sample repository with Aletheic state
         run: |
           npm ci
           npm run build
           mkdir -p "$RUNNER_TEMP/sample"
           cd "$RUNNER_TEMP/sample"
           git init -q -b main
-          git -c user.name=ci -c user.email=ci@threadline.invalid commit -q --allow-empty -m init
+          git -c user.name=ci -c user.email=ci@alethic.invalid commit -q --allow-empty -m init
           node "$GITHUB_WORKSPACE/dist/cli.js" init
       - uses: ./
         with:

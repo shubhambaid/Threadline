@@ -3,7 +3,7 @@ import path from "node:path";
 import { exists } from "../core/fs.js";
 import { KIND_DIRS, RECORD_KINDS } from "../core/ids.js";
 import { defaultManifestYaml, MANIFEST_FILE } from "../core/manifest.js";
-import { THREADLINE_DIR } from "../core/paths.js";
+import { ALETHIC_DIR } from "../core/paths.js";
 import { guessDefaultBranch } from "../git/git.js";
 import { type Io, resolveRepoRoot } from "./context.js";
 
@@ -30,11 +30,11 @@ export async function initCommand(io: Io, options: InitOptions): Promise<number>
     created.push(rel);
   };
 
-  await ensureFile(`${THREADLINE_DIR}/.gitignore`, GITIGNORE_CONTENT);
+  await ensureFile(`${ALETHIC_DIR}/.gitignore`, GITIGNORE_CONTENT);
   for (const kind of RECORD_KINDS) {
-    await ensureFile(`${THREADLINE_DIR}/${KIND_DIRS[kind]}/.gitkeep`, "");
+    await ensureFile(`${ALETHIC_DIR}/${KIND_DIRS[kind]}/.gitkeep`, "");
   }
-  await ensureFile(`${THREADLINE_DIR}/local/.gitkeep`, "");
+  await ensureFile(`${ALETHIC_DIR}/local/.gitkeep`, "");
   // Written last: the manifest's presence is what marks the repository as initialized,
   // so an interrupted init never looks complete.
   await ensureFile(MANIFEST_FILE, async () => {
@@ -43,16 +43,16 @@ export async function initCommand(io: Io, options: InitOptions): Promise<number>
   });
 
   if (created.length === 0) {
-    io.stdout("Threadline is already initialized. Nothing to do.\n");
+    io.stdout("Aletheic is already initialized. Nothing to do.\n");
     return 0;
   }
   io.stdout(
     [
-      `Initialized Threadline in ${THREADLINE_DIR}/`,
+      `Initialized Aletheic in ${ALETHIC_DIR}/`,
       ...created.map((file) => `  created ${file}`),
       "",
       "Next, commit it:",
-      `  git add ${THREADLINE_DIR} && git commit -m "Initialize Threadline"`,
+      `  git add ${ALETHIC_DIR} && git commit -m "Initialize Aletheic"`,
       "",
     ].join("\n"),
   );
